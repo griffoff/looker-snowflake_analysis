@@ -22,19 +22,27 @@ view: database_storage {
     hidden: yes
   }
 
-  dimension: days_in_month {
-    type: number
-    sql:  EXTRACT(day FROM LAST_DAY(${usage_raw}));;
-    hidden: yes
-  }
-
   dimension: average_failsafe_bytes {
     type: number
     sql: ${TABLE}.AVERAGE_FAILSAFE_BYTES ;;
     hidden: yes
   }
 
-  measure: credit_usage {
+  measure: periods {
+    type: number
+    sql:
+      {% if database_storage.usage_hour._in_query %}
+        EXTRACT(day FROM LAST_DAY(${usage_hour}::date)) * 24
+      {% elsif database_storage.usage_date._in_query %}
+        EXTRACT(day FROM LAST_DAY(${usage_date}::date))
+      {% else %}
+        1
+      {% endif %}
+      ;;
+    #hidden: yes
+  }
+
+  measure: credit_usage_value {
     type: number
     sql:
       {% if database_storage.database_name._in_query %}
@@ -44,6 +52,13 @@ view: database_storage {
       {% endif %}
       ;;
     value_format_name: TB_1
+    #hidden: yes
+  }
+
+  measure: credit_usage {
+    type: number
+    sql: ${credit_usage_value} / ${periods} ;;
+    value_format_name: TB_1
   }
 
   dimension: storage_rate {
@@ -51,6 +66,20 @@ view: database_storage {
     sql: 23;;
     #/ ${days_in_month};;
     hidden: yes
+  }
+
+  dimension_group: usage {
+    type: time
+    timeframes: [
+      raw,
+      date,
+      hour,
+      week,
+      month,
+    ]
+    convert_tz: no
+    datatype: date
+    sql: ${TABLE}.USAGE_DATE ;;
   }
 
   measure: storage_cost {
@@ -64,19 +93,5 @@ view: database_storage {
     sql: ${TABLE}.DATABASE_NAME ;;
   }
 
-  dimension_group: usage {
-    type: time
-    timeframes: [
-      raw,
-      date,
-      week,
-      month,
-      quarter,
-      year
-    ]
-    convert_tz: no
-    datatype: date
-    sql: ${TABLE}.USAGE_DATE ;;
-  }
 
 }
