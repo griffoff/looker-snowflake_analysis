@@ -2,11 +2,18 @@ view: database_storage {
   #sql_table_name: ZPG.DATABASE_STORAGE ;;
   derived_table: {
     sql:
-      select
-          *
-          ,(average_database_bytes + average_failsafe_bytes) / power(1024, 4) as db_tb
-          ,sum(db_tb) over (partition by usage_date) as total_tb
-      FROM ZPG.DATABASE_STORAGE  AS database_storage
+      with daily as (
+        select
+            *
+            ,(average_database_bytes + average_failsafe_bytes) / power(1024, 4) as db_tb
+            ,sum(db_tb) over (partition by usage_date) as total_tb
+        FROM ZPG.DATABASE_STORAGE
+        )
+        select
+            *
+            ,avg(total_tb) over (partition by date_trunc(month, usage_date)) as monthly_total_tb
+            ,avg(db_tb) over (partition by date_trunc(month, usage_date)) as monthly_db_tb
+        from daily
       ;;
     sql_trigger_value: select count(*) from zpg.database_storage ;;
   }
@@ -32,9 +39,20 @@ view: database_storage {
     type: number
     sql:
       {% if database_storage.usage_hour._in_query %}
-        EXTRACT(day FROM LAST_DAY(${usage_hour}::date)) * 24
+        max(EXTRACT(day FROM LAST_DAY(${usage_hour}::date)))) * 24
+      {% elsif warehouse_usage.start_hour._in_query %}
+        max(EXTRACT(day FROM LAST_DAY(${warehouse_usage.start_hour}::date))) * 24
       {% elsif database_storage.usage_date._in_query %}
-        EXTRACT(day FROM LAST_DAY(${usage_date}::date))
+        max(EXTRACT(day FROM LAST_DAY(${usage_date}::date)))
+      {% elsif warehouse_usage.start_date._in_query %}
+        max(EXTRACT(day FROM LAST_DAY(${warehouse_usage.start_date}::date)))
+      {% elsif warehouse_usage.start_week._in_query and warehouse_usage.start_day_of_week._in_query %}
+        24
+      {% elsif warehouse_usage.start_week._in_query %}
+        4
+      {% elsif warehouse_usage.start_day_of_week._in_query %}
+        7
+        --count(distinct ${warehouse_usage.start_date})
       {% else %}
         1
       {% endif %}
@@ -42,13 +60,67 @@ view: database_storage {
     #hidden: yes
   }
 
+  measure: monthly_db_tb {
+    type: sum_distinct
+    sql: ${TABLE}.monthly_db_tb ;;
+    hidden: yes
+    sql_distinct_key: ${usage_month} ;;
+  }
+
+  measure: db_tb {
+    type: number
+    sql:
+      {% if database_storage.usage_hour._in_query %}
+        avg(${TABLE}.db_tb)
+      {% elsif warehouse_usage.start_hour._in_query %}
+        avg(${TABLE}.db_tb)
+      {% elsif database_storage.usage_date._in_query %}
+        avg(${TABLE}.db_tb)
+      {% elsif warehouse_usage.start_date._in_query %}
+        avg(${TABLE}.db_tb)
+      {% elsif database_storage.usage_week._in_query %}
+        avg(${TABLE}.db_tb)
+      {% elsif warehouse_usage.start_week._in_query %}
+        avg(${TABLE}.db_tb)
+      {% else %}
+        ${monthly_db_tb}
+      {% endif %}  ;;
+  }
+
+  measure: monthly_total_tb {
+    type: sum_distinct
+    sql: ${TABLE}.monthly_total_tb ;;
+    hidden: yes
+    sql_distinct_key: ${usage_month} ;;
+  }
+
+  measure: total_tb {
+    type: number
+    sql:
+      {% if database_storage.usage_hour._in_query %}
+        avg(${TABLE}.total_tb)
+      {% elsif warehouse_usage.start_hour._in_query %}
+        avg(${TABLE}.total_tb)
+      {% elsif database_storage.usage_date._in_query %}
+        avg(${TABLE}.total_tb)
+      {% elsif warehouse_usage.start_date._in_query %}
+        avg(${TABLE}.total_tb)
+      {% elsif database_storage.usage_week._in_query %}
+        avg(${TABLE}.total_tb)
+      {% elsif warehouse_usage.start_week._in_query %}
+        avg(${TABLE}.total_tb)
+      {% else %}
+        ${monthly_total_tb}
+      {% endif %} ;;
+  }
+
   measure: credit_usage_value {
     type: number
     sql:
       {% if database_storage.database_name._in_query %}
-        avg(${TABLE}.db_tb)
+        ${db_tb}
       {% else %}
-        avg(${TABLE}.total_tb)
+        ${total_tb}
       {% endif %}
       ;;
     value_format_name: TB_1
@@ -72,10 +144,13 @@ view: database_storage {
     type: time
     timeframes: [
       raw,
-      date,
       hour,
+      date,
       week,
       month,
+      year,
+      fiscal_quarter,
+      fiscal_year
     ]
     convert_tz: no
     datatype: date
