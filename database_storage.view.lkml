@@ -12,7 +12,7 @@ view: database_storage {
         select
             *
             ,avg(total_tb) over (partition by date_trunc(month, usage_date)) as monthly_total_tb
-            ,avg(db_tb) over (partition by date_trunc(month, usage_date)) as monthly_db_tb
+            ,avg(db_tb) over (partition by database_name, date_trunc(month, usage_date)) as monthly_db_tb
         from daily
       ;;
     sql_trigger_value: select count(*) from zpg.database_storage ;;
@@ -57,7 +57,7 @@ view: database_storage {
         1
       {% endif %}
       ;;
-    #hidden: yes
+    hidden: yes
   }
 
   measure: monthly_db_tb {
@@ -85,6 +85,7 @@ view: database_storage {
       {% else %}
         ${monthly_db_tb}
       {% endif %}  ;;
+      hidden: yes
   }
 
   measure: monthly_total_tb {
@@ -112,6 +113,8 @@ view: database_storage {
       {% else %}
         ${monthly_total_tb}
       {% endif %} ;;
+      value_format_name: TB_1
+      hidden: yes
   }
 
   measure: credit_usage_value {
@@ -124,7 +127,7 @@ view: database_storage {
       {% endif %}
       ;;
     value_format_name: TB_1
-    #hidden: yes
+    hidden: yes
   }
 
   measure: credit_usage {
@@ -136,7 +139,6 @@ view: database_storage {
   dimension: storage_rate {
     type: number
     sql: 23;;
-    #/ ${days_in_month};;
     hidden: yes
   }
 

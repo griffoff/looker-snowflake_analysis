@@ -45,16 +45,19 @@ view: warehouse_usage {
   }
 
   dimension: query_id {
+    group_label: "query details"
     type: string
     sql: ${TABLE}.QUERY_ID ;;
   }
 
   dimension: query_text {
+    group_label: "query details"
     type: string
     sql: ${TABLE}.QUERY_TEXT ;;
   }
 
   dimension: query_type {
+    group_label: "query details"
     type: string
     sql: ${TABLE}.QUERY_TYPE ;;
   }
@@ -98,7 +101,6 @@ view: warehouse_usage {
   dimension: warehouse_name {
     type: string
     sql: ${TABLE}.WAREHOUSE_NAME ;;
-    hidden: no
   }
 
   dimension: warehouse_size {
@@ -109,9 +111,11 @@ view: warehouse_usage {
   measure: count {
     type: count
     drill_fields: [query_details*]
+    hidden: yes
   }
 
   measure: total_elapsed_time {
+    label: "Total Query Time"
     type: sum
     sql: ${TABLE}.TOTAL_ELAPSED_TIME_MS / 3600 / 24 ;;
     value_format_name: duration_hms
@@ -119,8 +123,9 @@ view: warehouse_usage {
   }
 
   measure: total_elapsed_time_credit_use {
+    label: "Total Chargable Query Time"
     type: sum
-    sql: ${TABLE}.total_elapsed_time_credit_use_ms / 2600 / 24 ;;
+    sql: ${TABLE}.total_elapsed_time_credit_use_ms / 3600 / 24 ;;
     value_format_name: duration_hms
     drill_fields: [query_details*]
   }
@@ -128,12 +133,14 @@ view: warehouse_usage {
   measure: credits_used_percent {
     type: sum
     value_format_name: percent_2
+    hidden: yes
   }
 
   measure: credits_used {
     type: sum
     value_format_name: decimal_2
     drill_fields: [query_details*]
+    hidden: yes
   }
 
   measure: warehouse_cost_per_credit {
@@ -177,6 +184,7 @@ view: warehouse_usage {
   }
 
   measure: warehouse_cost_mtd {
+    label: "Warehouse Cost (Month to Date)"
     required_fields: [start_date, start_month]
     type: number
     sql: sum(${warehouse_cost}) over (partition by ${start_month} order by ${start_date} rows unbounded preceding) ;;
