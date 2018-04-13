@@ -165,6 +165,13 @@ view: database_storage {
     value_format_name: currency
   }
 
+  measure: monthly_storage_cost {
+    type: number
+    sql:  ${monthly_total_tb} * ${storage_rate} ;;
+    value_format_name: currency
+    hidden: no
+  }
+
   dimension: database_name {
     type: string
     sql: ${TABLE}.DATABASE_NAME ;;

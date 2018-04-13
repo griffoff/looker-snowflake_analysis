@@ -1,4 +1,5 @@
 view: snowflake_budget {
+  label: "Budget"
   sql_table_name: UPLOADS.BUDGETS.SNOWFLAKE_BUDGET ;;
 
   dimension: _fivetran_deleted {
@@ -24,10 +25,23 @@ view: snowflake_budget {
     sql: ${TABLE}.GROWTH_REASON ;;
   }
 
+  dimension: month_raw {
+    type: date_raw
+    sql: to_date(${TABLE}.MONTH, 'MON-YY');;
+    primary_key: yes
+    hidden: yes
+  }
+
   dimension: month {
     type: date_month
-    sql: to_date(${TABLE}.MONTH, 'MON-YY') ;;
-    primary_key: yes
+    sql: ${month_raw} ;;
+    hidden: yes
+  }
+
+  dimension_group: budget {
+    type: time
+    timeframes: [month, year, fiscal_month_num, fiscal_year]
+    sql: ${month_raw};;
   }
 
   dimension: processing_node_hours {
@@ -46,7 +60,14 @@ view: snowflake_budget {
     label: "Monthly Budget"
     type: sum
     sql: to_decimal(${TABLE}.SNOWFLAKE_WITH_GROWTH, '\$9,999,990') ;;
-    value_format_name: currency
+    value_format_name: usd_0
+  }
+
+  measure: invoiced {
+    label: "Invoiced Amount"
+    type: sum
+    sql: to_decimal(${TABLE}.Invoiced, '\$9,999,990') ;;
+    value_format_name: usd_0
   }
 
   dimension: storage_processing_growth {

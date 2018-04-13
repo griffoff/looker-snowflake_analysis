@@ -6,6 +6,17 @@ include: "/core/common.lkml"
 
 case_sensitive: no
 
+explore: snowflake_budget {
+  join: database_storage_monthly {
+    sql_on: ${snowflake_budget.month} = ${database_storage_monthly.usage_month} ;;
+    relationship: one_to_one
+  }
+  join: warehouse_usage_monthly {
+    sql_on: ${snowflake_budget.month} = ${warehouse_usage_monthly.start_month} ;;
+    relationship: one_to_one
+  }
+}
+
 explore: warehouse_usage  {
   fields: [ALL_FIELDS*]
   join: database_storage {

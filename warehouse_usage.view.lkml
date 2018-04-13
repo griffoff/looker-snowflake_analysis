@@ -24,9 +24,13 @@ view: warehouse_usage {
         ,total_elapsed_time_credit_use_ms / nullif(sum(total_elapsed_time_credit_use_ms) over (partition by wu.start_time, wu.warehouse_name), 0) as credits_used_percent
         ,coalesce(credits_used_percent, 1) * total_credits_used as credits_used
         ,row_number() over (order by (wud.start_time, wu.start_time), wu.warehouse_name) as id
-    from ZPG.WAREHOUSE_USAGE wu
+    from  ZPG.WAREHOUSE_USAGE wu
     left join ZPG.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
-                                            and wu.start_time = wud.start_hour;;
+                                            and wu.start_time = wud.start_hour
+    where wu.start_time >= '2017-11-01'
+
+    ;;
+
     sql_trigger_value: select count(*) from ZPG.WAREHOUSE_USAGE_DETAIL  ;;
   }
 
@@ -152,7 +156,7 @@ view: warehouse_usage {
   measure: warehouse_cost {
     label:"Warehouse Cost"
     type: number
-    sql: ${credits_used} * ${warehouse_cost_per_credit} ;;
+    sql: ${credits_used} * ${warehouse_cost_per_credit};;
     value_format_name: currency
     drill_fields: [query_details*]
   }
