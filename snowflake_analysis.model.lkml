@@ -13,6 +13,10 @@ explore: warehouse_usage  {
     sql_on: ${warehouse_usage.start_date} = ${database_storage.usage_date} ;;
     relationship: many_to_many
   }
+  join: snowflake_budget {
+    sql_on: ${warehouse_usage.start_month} = ${snowflake_budget.month} ;;
+    relationship: many_to_one
+  }
 }
 
 explore: database_storage {
@@ -26,4 +30,8 @@ explore: database_storage {
     #type: full_outer
       relationship: many_to_many
     }
+  join: snowflake_budget {
+    sql_on: ${database_storage.usage_month} = ${snowflake_budget.month} ;;
+    relationship: many_to_one
   }
+}
