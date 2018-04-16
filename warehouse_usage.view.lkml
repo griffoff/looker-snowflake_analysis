@@ -112,6 +112,22 @@ view: warehouse_usage {
     sql: ${TABLE}.WAREHOUSE_SIZE ;;
   }
 
+  dimension: component_type {
+    type: string
+    sql: 'Compute' ;;
+  }
+
+  dimension: component {
+    type: string
+    sql: ${warehouse_name} ;;
+  }
+
+  measure: component_cost {
+    type: number
+    sql: ${warehouse_cost} ;;
+    value_format_name: usd
+  }
+
   measure: count {
     type: count
     drill_fields: [query_details*]

@@ -33,14 +33,14 @@ explore: warehouse_usage  {
 explore: database_storage {
   from: database_storage
   view_name: database_storage
-  join: warehouse_usage {
-    #fields: [warehouse_usage.warehouse_cost]
-    sql_on: ${database_storage.usage_date} = ${warehouse_usage.start_date}
-          --and ${database_storage.database_name} = ${warehouse_usage.database_name}
-          ;;
-    #type: full_outer
-      relationship: many_to_many
-    }
+#   join: warehouse_usage {
+#     #fields: [warehouse_usage.warehouse_cost]
+#     sql_on: ${database_storage.usage_date} = ${warehouse_usage.start_date}
+#           --and ${database_storage.database_name} = ${warehouse_usage.database_name}
+#           ;;
+#     #type: full_outer
+#       relationship: many_to_many
+#     }
   join: snowflake_budget {
     sql_on: ${database_storage.usage_month} = ${snowflake_budget.month} ;;
     relationship: many_to_one

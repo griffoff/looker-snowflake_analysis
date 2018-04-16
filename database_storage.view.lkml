@@ -11,8 +11,9 @@ view: database_storage {
         )
         select
             *
-            ,avg(total_tb) over (partition by date_trunc(month, usage_date)) as monthly_total_tb
-            ,avg(db_tb) over (partition by database_name, date_trunc(month, usage_date)) as monthly_db_tb
+            ,extract(day FROM least(max(usage_date) over (), LAST_DAY(usage_date))) as days_in_month
+            ,avg(total_tb) over (partition by date_trunc(month, usage_date)) / days_in_month as monthly_total_tb
+            ,avg(db_tb) over (partition by database_name, date_trunc(month, usage_date)) / days_in_month as monthly_db_tb
         from daily
       ;;
     sql_trigger_value: select count(*) from zpg.database_storage ;;
@@ -35,96 +36,27 @@ view: database_storage {
     hidden: yes
   }
 
-  measure: periods {
-    type: number
-    sql:
-      {% if database_storage.usage_hour._in_query %}
-        max(EXTRACT(day FROM LAST_DAY(${usage_hour}::date)))) * 24
-      {% elsif warehouse_usage.start_hour._in_query %}
-        max(EXTRACT(day FROM LAST_DAY(${warehouse_usage.start_hour}::date))) * 24
-      {% elsif database_storage.usage_date._in_query %}
-        max(EXTRACT(day FROM LAST_DAY(${usage_date}::date)))
-      {% elsif warehouse_usage.start_date._in_query %}
-        max(EXTRACT(day FROM LAST_DAY(${warehouse_usage.start_date}::date)))
-      {% elsif warehouse_usage.start_week._in_query and warehouse_usage.start_day_of_week._in_query %}
-        24
-      {% elsif warehouse_usage.start_week._in_query %}
-        4
-      {% elsif warehouse_usage.start_day_of_week._in_query %}
-        7
-        --count(distinct ${warehouse_usage.start_date})
-      {% else %}
-        1
-      {% endif %}
-      ;;
-    hidden: yes
-  }
-
   measure: monthly_db_tb {
-    type: sum_distinct
-    sql: ${TABLE}.monthly_db_tb ;;
-    hidden: yes
-    sql_distinct_key: ${usage_month} ;;
+    label: "Monthly DB Size for cost calculations"
+    type: sum
   }
 
   measure: db_tb {
-    type: number
-    sql:
-      {% if database_storage.usage_hour._in_query %}
-        avg(${TABLE}.db_tb)
-      {% elsif warehouse_usage.start_hour._in_query %}
-        avg(${TABLE}.db_tb)
-      {% elsif database_storage.usage_date._in_query %}
-        avg(${TABLE}.db_tb)
-      {% elsif warehouse_usage.start_date._in_query %}
-        avg(${TABLE}.db_tb)
-      {% elsif database_storage.usage_week._in_query %}
-        avg(${TABLE}.db_tb)
-      {% elsif warehouse_usage.start_week._in_query %}
-        avg(${TABLE}.db_tb)
-      {% else %}
-        ${monthly_db_tb}
-      {% endif %}  ;;
-      hidden: yes
+    label: "Avg. DB Size"
+    type: average
+    sql: ${TABLE}.db_tb * 1024 ;;
+    value_format_name: MB
   }
 
-  measure: monthly_total_tb {
-    type: sum_distinct
-    sql: ${TABLE}.monthly_total_tb ;;
-    hidden: yes
-    sql_distinct_key: ${usage_month} ;;
-  }
-
-  measure: total_tb {
-    type: number
-    sql:
-      {% if database_storage.usage_hour._in_query %}
-        avg(${TABLE}.total_tb)
-      {% elsif warehouse_usage.start_hour._in_query %}
-        avg(${TABLE}.total_tb)
-      {% elsif database_storage.usage_date._in_query %}
-        avg(${TABLE}.total_tb)
-      {% elsif warehouse_usage.start_date._in_query %}
-        avg(${TABLE}.total_tb)
-      {% elsif database_storage.usage_week._in_query %}
-        avg(${TABLE}.total_tb)
-      {% elsif warehouse_usage.start_week._in_query %}
-        avg(${TABLE}.total_tb)
-      {% else %}
-        ${monthly_total_tb}
-      {% endif %} ;;
-      value_format_name: TB_1
-      hidden: yes
+  measure: db_count {
+    label: "# DBs"
+    type: count_distinct
+    sql: ${database_name} ;;
   }
 
   measure: credit_usage_value {
     type: number
-    sql:
-      {% if database_storage.database_name._in_query %}
-        ${db_tb}
-      {% else %}
-        ${total_tb}
-      {% endif %}
+    sql: ${monthly_db_tb}
       ;;
     value_format_name: TB_1
     hidden: yes
@@ -132,7 +64,7 @@ view: database_storage {
 
   measure: credit_usage {
     type: number
-    sql: ${credit_usage_value} / ${periods} ;;
+    sql: ${credit_usage_value} ;;
     value_format_name: TB_1
   }
 
@@ -159,17 +91,26 @@ view: database_storage {
     sql: ${TABLE}.USAGE_DATE ;;
   }
 
+  dimension: component_type {
+    type: string
+    sql: 'Storage' ;;
+  }
+
+  dimension: component {
+    type: string
+    sql: ${database_name} ;;
+  }
+
+  measure: component_cost {
+    type: number
+    sql: ${storage_cost} ;;
+    value_format_name: usd
+  }
+
   measure: storage_cost {
     type: number
     sql:  ${credit_usage} * ${storage_rate} ;;
-    value_format_name: currency
-  }
-
-  measure: monthly_storage_cost {
-    type: number
-    sql:  ${monthly_total_tb} * ${storage_rate} ;;
-    value_format_name: currency
-    hidden: no
+    value_format_name: usd
   }
 
   dimension: database_name {

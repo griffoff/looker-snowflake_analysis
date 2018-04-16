@@ -7,7 +7,7 @@ view: database_storage_monthly {
   derived_table: {
     explore_source: database_storage {
       column: usage_month {}
-      column: monthly_storage_cost {}
+      column: storage_cost {}
     }
   }
 
@@ -18,7 +18,7 @@ view: database_storage_monthly {
 
   measure: total_storage_cost {
     type: sum
-    sql: ${TABLE}.monthly_storage_cost ;;
+    sql: ${TABLE}.storage_cost ;;
     value_format_name: usd_0
   }
 }
