@@ -46,3 +46,13 @@ explore: database_storage {
     relationship: many_to_one
   }
 }
+explore: fivetran_usage {
+  view_label: "FiveTran Costs"
+  join: database_storage {
+    fields: [database_storage.storage_cost]
+    view_label: "FiveTran Costs"
+    sql_on: ${fivetran_usage.usage_date} = ${database_storage.usage_date}
+          and ${fivetran_usage.database_name} = ${database_storage.database_name};;
+    relationship: one_to_one
+  }
+}

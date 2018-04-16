@@ -76,6 +76,12 @@ view: warehouse_usage {
     sql: ${TABLE}.SCHEMA_NAME ;;
   }
 
+  dimension: usage_date {
+    type: date_raw
+    sql: ${TABLE}.start_time::date ;;
+    hidden: yes
+  }
+
   dimension_group: start {
     label: "Query"
     type: time
