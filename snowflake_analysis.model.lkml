@@ -1,6 +1,6 @@
 connection: "snowflake_dev"
 
-include: "*.view"         # include all views in this project
+include: "snowflake_usage.*.view"         # include all views in this project
 include: "*.dashboard.lookml"  # include all dashboards in this project
 include: "/core/common.lkml"
 
