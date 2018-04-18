@@ -3,7 +3,9 @@ connection: "snowflake_dev"
 include: "t_*.*"         # include all views in this project
 include: "*.dashboard.lookml"  # include all dashboards in this project
 
-explore: t_roles  {
+explore: database_permissions  {
+  from:  t_roles
+  view_name:  t_roles
   label: "Object Permissions"
   join: t_role_grants {
     fields: [t_role_grants.curated_fields*]
@@ -21,7 +23,10 @@ explore: t_roles  {
   }
 }
 
-explore: t_users {
+explore: user_roles {
+  from: t_users
+  view_name: t_users
+
   label: "User Roles"
 
   join: t_user_roles {

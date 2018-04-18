@@ -18,19 +18,29 @@ view: t_role_grants {
     primary_key: yes
   }
 
+  dimension: full_object_name {
+    type: string
+    sql: ${TABLE}.OBJECT_NAME ;;
+  }
+
+  dimension: db_na {
+    hidden: yes
+    sql:  ${object_type} in ('WAREHOUSE', 'USER') ;;
+  }
+
   dimension: object_database {
     type: string
-    sql: split_part(${object_name}, '.', 1) ;;
+    sql: case when ${db_na} then 'N/A' else split_part(${full_object_name}, '.', 1) end ;;
   }
 
   dimension: object_schema {
     type: string
-    sql: split_part(${object_name}, '.', 2) ;;
+    sql: case when ${db_na} then 'N/A' else split_part(${full_object_name}, '.', 2) end;;
   }
 
   dimension: object_name {
     type: string
-    sql: ${TABLE}.OBJECT_NAME ;;
+    sql: split_part(${full_object_name}, '.', -1);;
   }
 
   dimension: object_type {
