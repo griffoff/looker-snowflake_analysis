@@ -3,7 +3,7 @@ view: t_role_grants {
   sql_table_name: ZPG.T_ROLE_GRANTS ;;
 
   set: details{
-    fields: [role_name, root_path, object_name, object_type, all_privileges]
+    fields: [role_name, root_path, object_database, object_schema, object_name, object_type, all_privileges]
   }
 
   set: curated_fields{
