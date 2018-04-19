@@ -20,6 +20,6 @@ view: t_roles {
 
   measure: roles_available {
     type: string
-    sql: array_to_string(array_agg(distinct ${role_name}) within group (order by ${role_name}), ',') ;;
+    sql: list_agg(distinct ${role_name}, ',') within group (order by ${role_name}) ;;
   }
 }

@@ -3,11 +3,16 @@ view: t_role_grants {
   sql_table_name: ZPG.T_ROLE_GRANTS ;;
 
   set: details{
-    fields: [role_name, root_path, object_database, object_schema, object_name, object_type, all_privileges]
+    fields: [role_name, root_path, object_database, object_schema, object_name, object_type, all_privileges, user_roles]
   }
 
   set: curated_fields{
     fields: [details*, object_database, object_schema, privilege, -role_name]
+  }
+
+  measure: user_roles {
+    type: string
+    sql: ${t_user_roles.roles} ;;
   }
 
   dimension: pk {
