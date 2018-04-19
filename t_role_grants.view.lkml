@@ -3,7 +3,7 @@ view: t_role_grants {
   sql_table_name: ZPG.T_ROLE_GRANTS ;;
 
   set: details{
-    fields: [role_name, root_path, object_database, object_schema, object_name, object_type, all_privileges, user_roles]
+    fields: [object_database, object_schema, object_name, object_type, all_privileges, user_roles, role_paths]
   }
 
   set: curated_fields{
@@ -67,6 +67,11 @@ view: t_role_grants {
     label: "Role Path"
     type: string
     sql: ${TABLE}.ROOT_PATH ;;
+  }
+
+  measure: role_paths {
+    label: "Role Path"
+    sql: listagg(distinct ${root_path}, '\n,') within group (order by ${root_path}) ;;
   }
 
   measure: count {
