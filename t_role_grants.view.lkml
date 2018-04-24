@@ -3,11 +3,11 @@ view: t_role_grants {
   sql_table_name: ZPG.T_ROLE_GRANTS ;;
 
   set: details{
-    fields: [object_database, object_schema, object_name, object_type, all_privileges, user_roles, role_paths]
+    fields: [object_database, object_schema, object_name, object_type, all_privileges, user_roles, role_paths, leaf_roles]
   }
 
   set: curated_fields{
-    fields: [details*, object_database, object_schema, privilege, -role_name]
+    fields: [details*, object_database, object_schema, privilege, db_count, schema_count, object_count, -role_name]
   }
 
   measure: user_roles {
@@ -69,14 +69,42 @@ view: t_role_grants {
     sql: ${TABLE}.ROOT_PATH ;;
   }
 
+  dimension: leaf_role {
+    type: string
+    sql: ${root_path}[array_size(${root_path})-1] ;;
+    hidden: yes
+  }
+
+  measure: leaf_roles {
+    label: "Leaf Roles"
+    description: "Lowest level roles that give direct access to this resource"
+    sql: listagg(distinct ${leaf_role}, ', ') ;;
+  }
+
   measure: role_paths {
-    label: "Role Path"
+    label: "Role Paths"
+    description: "full grant hierarchies that gives access to this resource"
     sql: listagg(distinct ${root_path}, '\n,') within group (order by ${root_path}) ;;
   }
 
   measure: count {
     type: count
     drill_fields: [details*]
+  }
+
+  measure: schema_count {
+    type: count_distinct
+    sql: ${object_schema} ;;
+  }
+
+  measure: db_count {
+    type: count_distinct
+    sql: ${object_database} ;;
+  }
+
+  measure: object_count {
+    type: count_distinct
+    sql: ${full_object_name} ;;
   }
 
   measure: all_privileges {
