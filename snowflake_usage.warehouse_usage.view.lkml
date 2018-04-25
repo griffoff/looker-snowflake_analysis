@@ -135,15 +135,29 @@ view: warehouse_usage {
   }
 
   measure: count {
+    label: "# Queries"
     type: count
     drill_fields: [query_details*]
+  }
+
+  dimension: elapsed_time {
+    type: number
+    sql: ${TABLE}.TOTAL_ELAPSED_TIME_MS / 3600 / 24 ;;
     hidden: yes
   }
 
   measure: total_elapsed_time {
-    label: "Total Query Time"
+    label: "Query Time (Total)"
     type: sum
-    sql: ${TABLE}.TOTAL_ELAPSED_TIME_MS / 3600 / 24 ;;
+    sql: ${elapsed_time} ;;
+    value_format_name: duration_dhm
+    drill_fields: [query_details*]
+  }
+
+  measure: avg_elapsed_time {
+    label: "Query Time (Average)"
+    type: average
+    sql: ${elapsed_time} ;;
     value_format_name: duration_hms
     drill_fields: [query_details*]
   }
