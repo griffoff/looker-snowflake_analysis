@@ -54,6 +54,7 @@ view: t_users {
   }
 
   measure: count {
+    label: "# Users"
     type: count
     drill_fields: [user_name, user_login_name, user_full_name, user_first_name, user_last_name]
   }

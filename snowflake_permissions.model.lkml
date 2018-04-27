@@ -12,6 +12,10 @@ explore: database_permissions  {
     sql_on: ${t_roles.role_name} = ${t_role_grants.role_name} ;;
     relationship: one_to_many
   }
+  join: t_privilege_type {
+    sql_on: ${t_role_grants.privilege} = ${t_privilege_type.privilege}  ;;
+    relationship: many_to_one
+  }
   join: t_user_roles {
     fields: []
     sql_on: ${t_roles.role_name} = ${t_user_roles.role_name};;

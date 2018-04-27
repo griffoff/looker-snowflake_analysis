@@ -3,7 +3,7 @@ view: t_role_grants {
   sql_table_name: ZPG.T_ROLE_GRANTS ;;
 
   set: details{
-    fields: [object_database, object_schema, object_name, object_type, all_privileges, user_roles, role_paths, leaf_roles]
+    fields: [object_database, object_schema, object_name, object_type, all_privileges, all_privileges_count, user_roles, role_paths, leaf_roles]
   }
 
   set: curated_fields{
@@ -30,7 +30,7 @@ view: t_role_grants {
 
   dimension: db_na {
     hidden: yes
-    sql:  ${object_type} in ('WAREHOUSE', 'USER') ;;
+    sql:  ${object_type} in ('WAREHOUSE', 'USER', 'RESOURCE_MONITOR', 'EMAIL', 'NOTIFICATION_SUBSCRIPTION', 'ACCOUNT') ;;
   }
 
   dimension: object_database {
@@ -110,6 +110,13 @@ view: t_role_grants {
   measure: all_privileges {
     type: string
        sql: array_to_string(array_agg(distinct ${privilege}) within group (order by ${privilege}), ', ') ;;
+    drill_fields: [details*]
+  }
+
+  measure: all_privileges_count {
+    label: "# privileges"
+    type: number
+    sql:  array_size(array_agg(distinct ${privilege}) within group (order by ${privilege}));;
     drill_fields: [details*]
   }
 
