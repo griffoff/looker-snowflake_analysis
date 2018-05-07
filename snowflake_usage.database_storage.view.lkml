@@ -37,7 +37,8 @@ view: database_storage {
   }
 
   measure: monthly_db_tb {
-    label: "Monthly DB Size for cost calculations"
+    label: "Total DB Size"
+    description: "Monthly DB Size for cost calculations"
     type: sum
     value_format_name: TB_1
   }
