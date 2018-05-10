@@ -26,7 +26,10 @@ view: warehouse_usage {
         ,row_number() over (order by (wud.start_time, wu.start_time), wu.warehouse_name) as id
     from  ZPG.WAREHOUSE_USAGE wu
     left join ZPG.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
-                                            and wu.start_time = wud.start_hour
+                                            --and wu.start_time = wud.start_hour
+                                            --accommodate queries that run across an hour boundary (this causes nulls to show up when there are no other queries in the following hour)
+                                            and wu.start_time >= wud.start_hour
+                                            and wu.start_time <= date_trunc(hour, dateadd(millisecond, wud.total_elapsed_time, wud.start_time))
     where wu.start_time >= '2017-11-01'
 
     ;;
@@ -49,19 +52,19 @@ view: warehouse_usage {
   }
 
   dimension: query_id {
-    group_label: "query details"
+    group_label: "Query details"
     type: string
     sql: ${TABLE}.QUERY_ID ;;
   }
 
   dimension: query_text {
-    group_label: "query details"
+    group_label: "Query details"
     type: string
     sql: ${TABLE}.QUERY_TEXT ;;
   }
 
   dimension: query_type {
-    group_label: "query details"
+    group_label: "Query details"
     type: string
     sql: ${TABLE}.QUERY_TYPE ;;
   }
@@ -106,6 +109,46 @@ view: warehouse_usage {
   dimension: user_name {
     type: string
     sql: ${TABLE}.USER_NAME ;;
+  }
+
+  dimension: user_type {
+    type: string
+    case: {
+      when: {
+        sql: ${user_name} is null ;;
+        label: "Unknown"
+        # warehouse usage data captured before detail was being captured
+      }
+      when: {
+        sql: ${user_name} ilike 'FIVETRAN%' ;;
+        label: "Data Sync - FiveTran"
+      }
+      when: {
+        sql: ${user_name} ilike 'REALTIME_SYNC%' ;;
+        label: "Data Sync - RealTime"
+      }
+      when: {
+        sql:  ${user_name} ilike 'LOOKER%' ;;
+        label: "Service - Looker"
+      }
+      when: {
+        sql:  ${user_name} ilike 'AIRFLOW%' or ${user_name} ilike 'SVCPA';;
+        label: "Service - Airflow"
+      }
+      when: {
+        sql:  ${user_name} ilike 'BNOC%' ;;
+        label: "Service - BNOC"
+      }
+      when: {
+        sql:  ${user_name} ilike 'CAP_ER%' ;;
+        label: "Service - CAP/ER"
+      }
+      when: {
+        sql:  ${user_name} ilike 'UNLIMITED_SPARK%' ;;
+        label: "Service - CAP/UNLIMITED"
+      }
+      else: "User"
+    }
   }
 
   dimension: warehouse_name {
