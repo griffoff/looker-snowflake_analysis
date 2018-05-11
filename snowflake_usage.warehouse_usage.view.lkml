@@ -92,6 +92,7 @@ view: warehouse_usage {
       raw,
       time,
       hour_of_day,
+      time_of_day,
       hour,
       hour3,
       hour6,
@@ -130,6 +131,10 @@ view: warehouse_usage {
       when: {
         sql:  ${user_name} ilike 'LOOKER%' ;;
         label: "Service - Looker"
+      }
+      when: {
+        sql:  ${user_name} ilike 'LO_APP' ;;
+        label: "Service - Learning Objects"
       }
       when: {
         sql:  ${user_name} ilike 'AIRFLOW%' or ${user_name} ilike 'SVCPA';;
@@ -201,7 +206,7 @@ view: warehouse_usage {
     label: "Query Time (Average)"
     type: average
     sql: ${elapsed_time} ;;
-    value_format_name: duration_hms
+    value_format_name: duration_dhm
     drill_fields: [query_details*]
   }
 
@@ -236,6 +241,14 @@ view: warehouse_usage {
     label:"Warehouse Cost"
     type: number
     sql: ${credits_used} * ${warehouse_cost_per_credit};;
+    value_format_name: currency
+    drill_fields: [query_details*]
+  }
+
+  measure: warehouse_cost_avg {
+    label:"Warehouse Cost (Avg)"
+    type: number
+    sql: ${warehouse_cost} / ${count};;
     value_format_name: currency
     drill_fields: [query_details*]
   }
