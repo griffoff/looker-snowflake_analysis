@@ -30,6 +30,7 @@ view: t_user_roles {
   }
 
   measure: roles {
+    description: "A list of the roles this user can use"
     type: string
     sql:  array_to_string(array_agg(distinct ${role_name}) within group (order by ${role_name}), ', ') ;;
   }

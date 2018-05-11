@@ -77,13 +77,14 @@ view: t_role_grants {
 
   measure: leaf_roles {
     label: "Leaf Roles"
-    description: "Lowest level roles that give direct access to this resource"
+    description: "Lowest level role that gives direct access to this resource"
     sql: listagg(distinct ${leaf_role}, ', ') ;;
   }
 
   measure: role_paths {
     label: "Role Paths"
-    description: "full grant hierarchies that gives access to this resource"
+    description: "full grant hierarchies that gives access to this resource.
+    i.e. how does this person/role have access, is it through another role?  Which one(s)?"
     sql: listagg(distinct ${root_path}, '\n,') within group (order by ${root_path}) ;;
   }
 
@@ -108,6 +109,7 @@ view: t_role_grants {
   }
 
   measure: all_privileges {
+    description: "A list of all the privileges granted to the current user or role on the current database object or objects"
     type: string
        sql: array_to_string(array_agg(distinct ${privilege}) within group (order by ${privilege}), ', ') ;;
     drill_fields: [details*]
