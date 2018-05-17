@@ -38,7 +38,7 @@ view: warehouse_usage {
   }
 
   set: query_details {
-    fields: [start_time, query_text, query_type, warehouse_name, database_name, schema_name, role_name, user_name, total_elapsed_time, warehouse_cost]
+    fields: [start_time, query_text, query_type, warehouse_name, database_name, schema_name, role_name, user_name, total_elapsed_time_detail, warehouse_cost]
   }
   dimension: database_name {
     type: string
@@ -190,7 +190,15 @@ view: warehouse_usage {
 
   dimension: elapsed_time {
     type: number
-    sql: ${TABLE}.TOTAL_ELAPSED_TIME_MS / 3600 / 24 ;;
+    sql: ${TABLE}.TOTAL_ELAPSED_TIME_MS / 1000 / 3600 / 24 ;;
+    hidden: yes
+  }
+
+  measure: total_elapsed_time_detail {
+    label: "Query Time"
+    type: sum
+    sql: ${elapsed_time} ;;
+    value_format_name: duration_hms
     hidden: yes
   }
 
@@ -206,7 +214,7 @@ view: warehouse_usage {
     label: "Query Time (Average)"
     type: average
     sql: ${elapsed_time} ;;
-    value_format_name: duration_dhm
+    value_format_name: duration_hms
     drill_fields: [query_details*]
   }
 
