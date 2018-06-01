@@ -196,14 +196,26 @@ view: warehouse_usage {
 
   measure: total_elapsed_time_detail {
     label: "Query Time"
+    group_label: "Query Time"
     type: sum
     sql: ${elapsed_time} ;;
     value_format_name: duration_hms
     hidden: yes
   }
 
+  dimension: elapsed_time_buckets {
+    label: "Query Time (buckets)"
+    type: tier
+    style: relational
+    tiers: [0.00001157407, 0.00002314814, 0.00004629629, 0.00009259259, 0.00018518518, 0.00037037037]
+    sql: ${elapsed_time} ;;
+    value_format_name: duration_hms
+
+  }
+
   measure: total_elapsed_time {
     label: "Query Time (Total)"
+    group_label: "Query Duration"
     type: sum
     sql: ${elapsed_time} ;;
     value_format_name: duration_dhm
@@ -212,8 +224,45 @@ view: warehouse_usage {
 
   measure: avg_elapsed_time {
     label: "Query Time (Average)"
+    group_label: "Query Duration"
     type: average
     sql: ${elapsed_time} ;;
+    value_format_name: duration_hms
+    drill_fields: [query_details*]
+  }
+
+  measure: max_elapsed_time {
+    label: "Query Time (Max)"
+    group_label: "Query Duration"
+    type: max
+    sql: ${elapsed_time} ;;
+    value_format_name: duration_hms
+    drill_fields: [query_details*]
+  }
+
+  measure: min_elapsed_time {
+    label: "Query Time (Min)"
+    group_label: "Query Duration"
+    type: min
+    sql: ${elapsed_time} ;;
+    value_format_name: duration_hms
+    drill_fields: [query_details*]
+  }
+
+  measure: med_elapsed_time {
+    label: "Query Time (Median)"
+    group_label: "Query Duration"
+    type: median
+    sql: ${elapsed_time} ;;
+    value_format_name: duration_hms
+    drill_fields: [query_details*]
+  }
+
+  measure: stdev_elapsed_time {
+    label: "Query Time (Std. Dev.)"
+    group_label: "Query Duration"
+    type: number
+    sql: stddev(${elapsed_time}) ;;
     value_format_name: duration_hms
     drill_fields: [query_details*]
   }
