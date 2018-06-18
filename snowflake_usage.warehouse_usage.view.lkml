@@ -10,7 +10,11 @@ view: warehouse_usage {
         ,wud.query_id
         ,wud.database_name
         ,wud.schema_name
-        ,wud.query_type
+        ,case
+            when wud.query_type = 'UNKNOWN'
+              then array_to_string(array_slice(split(query_text, ' '), 0, 2), ' ')
+            else wud.query_type
+            end as query_type
         ,wud.user_name
         ,wud.role_name
         ,wud.warehouse_size
@@ -220,6 +224,18 @@ view: warehouse_usage {
     sql: ${elapsed_time} ;;
     value_format_name: duration_dhm
     drill_fields: [query_details*]
+  }
+
+  measure: cost_per_query {
+    type: number
+    sql: ${warehouse_cost} / ${number_of_chargable_queries} ;;
+    value_format_name: currency
+  }
+
+  measure: number_of_chargable_queries {
+    label: "# Chargable Queries"
+    type: number
+    sql: count(case when ${TABLE}.total_elapsed_time_credit_use_ms > 0 then 1 end) ;;
   }
 
   measure: avg_elapsed_time {
