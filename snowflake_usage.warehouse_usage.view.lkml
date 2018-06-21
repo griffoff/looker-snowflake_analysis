@@ -28,8 +28,8 @@ view: warehouse_usage {
         ,total_elapsed_time_credit_use_ms / nullif(sum(total_elapsed_time_credit_use_ms) over (partition by wu.start_time, wu.warehouse_name), 0) as credits_used_percent
         ,coalesce(credits_used_percent, 1) * total_credits_used as credits_used
         ,row_number() over (order by (wud.start_time, wu.start_time), wu.warehouse_name) as id
-    from  ZPG.WAREHOUSE_USAGE wu
-    left join ZPG.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
+    from  USAGE.SNOWFLAKE.WAREHOUSE_USAGE wu
+    left join USAGE.SNOWFLAKE.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
                                             --and wu.start_time = wud.start_hour
                                             --accommodate queries that run across an hour boundary (this causes nulls to show up when there are no other queries in the following hour)
                                             and wu.start_time >= wud.start_hour
@@ -109,6 +109,19 @@ view: warehouse_usage {
       year
     ]
     sql: ${TABLE}.START_TIME ;;
+  }
+
+  measure: latest_start_time {
+    label: "Up to date as of:"
+    type: date_time
+    sql: max(${start_raw}) ;;
+  }
+
+  measure: data_recency {
+    label: "Age of data"
+    type: number
+    sql: datediff(second, ${latest_start_time}, current_timestamp()) / 3600 / 24 ;;
+    value_format: "h \h\r\s m \m\i\n\s"
   }
 
   dimension: user_name {
