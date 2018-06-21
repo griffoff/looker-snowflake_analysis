@@ -16,7 +16,7 @@ view: database_storage {
             ,avg(db_tb) over (partition by database_name, date_trunc(month, usage_date)) / days_in_month as monthly_db_tb
         from daily
       ;;
-    sql_trigger_value: select count(*) from zpg.database_storage ;;
+    sql_trigger_value: select count(*) from USAGE.SNOWFLAKE.database_storage ;;
   }
 
   dimension: pk {
