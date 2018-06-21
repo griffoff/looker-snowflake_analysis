@@ -38,7 +38,7 @@ view: warehouse_usage {
 
     ;;
 
-    sql_trigger_value: select count(*) from ZPG.WAREHOUSE_USAGE_DETAIL  ;;
+    sql_trigger_value: select count(*) from USAGE.SNOWFLAKE.WAREHOUSE_USAGE_DETAIL  ;;
   }
 
   set: query_details {
