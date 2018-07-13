@@ -1,7 +1,7 @@
 connection: "snowflake_admin"
 
 include: "information_schema.*"         # include all views in this project
-include: "*.dashboard.lookml"  # include all dashboards in this project
+#include: "*.dashboard.lookml"  # include all dashboards in this project
 
 
 explore: enabled_roles {

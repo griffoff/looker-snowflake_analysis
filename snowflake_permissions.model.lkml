@@ -1,7 +1,7 @@
 connection: "snowflake_dev"
 
 include: "t_*.*"         # include all views in this project
-include: "*.dashboard.lookml"  # include all dashboards in this project
+#include: "*.dashboard.lookml"  # include all dashboards in this project
 
 explore: database_permissions  {
   from:  t_roles
