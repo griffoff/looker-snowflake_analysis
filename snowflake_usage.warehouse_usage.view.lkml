@@ -300,7 +300,7 @@ sql: with wh_detail as (
   measure: cost_per_query {
     type: number
     sql: ${warehouse_cost} / ${number_of_chargable_queries} ;;
-    value_format_name: currency
+    value_format_name: usd
   }
 
   measure: number_of_chargable_queries {
@@ -385,7 +385,7 @@ sql: with wh_detail as (
     label:"Warehouse Cost"
     type: number
     sql: ${credits_used} * ${warehouse_cost_per_credit};;
-    value_format_name: currency
+    value_format_name: usd
     drill_fields: [query_details*]
   }
 
@@ -393,7 +393,7 @@ sql: with wh_detail as (
     label:"Warehouse Cost (Avg)"
     type: number
     sql: ${warehouse_cost} / ${count};;
-    value_format_name: currency
+    value_format_name: usd
     drill_fields: [query_details*]
   }
 
@@ -401,7 +401,7 @@ sql: with wh_detail as (
     label:"Warehouse Cost (1 month at this rate)"
     type: number
     sql: ${warehouse_cost} * 365 / 12;;
-    value_format_name: currency
+    value_format_name: usd
     drill_fields: [query_details*]
     required_fields: [start_date]
   }
@@ -410,7 +410,7 @@ sql: with wh_detail as (
     label:"Warehouse Cost (1 month at the last 7 days avg daily rate)"
     type: number
     sql: sum(${warehouse_cost}) over (order by ${start_date} rows between 7 preceding and current row) * 365 / 12 / 7 ;;
-    value_format_name: currency
+    value_format_name: usd
     required_fields: [start_date]
   }
 
@@ -418,7 +418,7 @@ sql: with wh_detail as (
     label:"Warehouse Cost (1 month at the last 6 hours avg rate)"
     type: number
     sql: sum(${warehouse_cost}) over (order by ${start_hour} rows between 6 preceding and current row) * 4 * 365 / 12;;
-    value_format_name: currency
+    value_format_name: usd
     drill_fields: [query_details*]
     required_fields: [start_hour]
   }
@@ -428,7 +428,7 @@ sql: with wh_detail as (
     required_fields: [start_date, start_month]
     type: number
     sql: sum(${warehouse_cost}) over (partition by ${start_month} order by ${start_date} rows unbounded preceding) ;;
-    value_format_name: currency
+    value_format_name: usd
   }
 
 }
