@@ -1,4 +1,4 @@
-connection: "snowflake_dev"
+connection: "snowflake_admin"
 
 include: "snowflake_usage.*.view"         # include all views in this project
 #include: "*.dashboard.lookml"  # include all dashboards in this project
