@@ -179,7 +179,7 @@ sql: with wh_detail as (
     label: "Age of data"
     type: number
     sql: datediff(second, ${latest_start_time}, current_timestamp()) / 3600 / 24 ;;
-    value_format: "h \h\r\s m \m\i\n\s"
+    value_format: "d \d\a\y\s h \h\r\s m \m\i\n\s"
   }
 
   dimension: user_name {
@@ -384,7 +384,7 @@ sql: with wh_detail as (
   measure: warehouse_cost {
     label:"Warehouse Cost"
     type: number
-    sql: ${credits_used} * ${warehouse_cost_per_credit};;
+    sql: case when ${credits_used} >= 0 then ${credits_used} end * ${warehouse_cost_per_credit};;
     value_format_name: usd
     drill_fields: [query_details*]
   }

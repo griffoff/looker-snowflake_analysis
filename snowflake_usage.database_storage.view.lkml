@@ -46,8 +46,8 @@ view: database_storage {
 
   measure: db_tb {
     label: "Avg. DB Size"
-    type: average
-    sql: ${TABLE}.db_tb * 1024 ;;
+    type: number
+    sql: SUM(${TABLE}.db_tb * power(1024, 2) ) / ${day_count} ;;
     value_format_name: MB
   }
 
@@ -55,6 +55,13 @@ view: database_storage {
     label: "# DBs"
     type: count_distinct
     sql: ${database_name} ;;
+  }
+
+  measure: day_count {
+    label: "# days"
+    type: count_distinct
+    sql: ${usage_date} ;;
+    hidden: yes
   }
 
   measure: credit_usage_value {
