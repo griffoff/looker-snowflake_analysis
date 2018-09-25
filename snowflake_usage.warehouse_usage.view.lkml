@@ -2,99 +2,115 @@ view: warehouse_usage {
   label: "Warehouse Usage"
   #sql_table_name: ZPG.WAREHOUSE_USAGE_DETAIL ;;
   derived_table: {
-# TEMPORARY FIX FOR WHILE THE USAGE AND STORAGE TABLES ARE NOT BEING POPULATED
-# sql: with wh_detail as (
-#             select
-#               query_id
-#               ,start_time
-#               ,start_hour
-#               ,warehouse_name
-#               ,database_name
-#               ,schema_name
-#               ,user_name
-#               ,role_name
-#               ,warehouse_size
-#               ,query_text
-#               ,total_elapsed_time as total_elapsed_time_ms
-#               ,case when query_type not in ('DROP_CONSTRAINT', 'ALTER_TABLE_MODIFY_COLUMN', 'ALTER_TABLE_ADD_COLUMN', 'ALTER_TABLE_DROP_COLUMN', 'RENAME_COLUMN', 'DESCRIBE', 'SHOW', 'CREATE_TABLE', 'ALTER_SESSION', 'USE', 'DROP', 'CREATE CONSTRAINT', 'ALTER USER')
-#                     then total_elapsed_time_ms
-#                     when query_id is not null
-#                     then 0
-#                     end as total_elapsed_time_credit_use_ms
-#               ,case
-#                 when query_type = 'UNKNOWN'
-#                   then array_to_string(array_slice(split(query_text, ' '), 0, 2), ' ')
-#                 else query_type
-#                 end as query_type
-#             from USAGE.SNOWFLAKE.WAREHOUSE_USAGE_DETAIL
-#         )
-#         ,wh_usage as (
-#             select warehouse_name, start_time, credits_used
-#             from USAGE.SNOWFLAKE.WAREHOUSE_USAGE wu
-#             union
-#             select warehouse_name, start_hour, (sum(total_elapsed_time_credit_use_ms) / 1000 / 3600) * 1.4
-#             from wh_detail
-#             group by 1, 2
-#         )
-#         select
-#             wu.warehouse_name
-#             ,coalesce(wud.start_time, wu.start_time) as start_time
-#             ,wu.credits_used as total_credits_used
-#             ,wud.query_id
-#             ,wud.database_name
-#             ,wud.schema_name
-#             ,wud.query_type
-#             ,wud.user_name
-#             ,wud.role_name
-#             ,wud.warehouse_size
-#             ,wud.total_elapsed_time_ms
-#             ,wud.total_elapsed_time_credit_use_ms
-#             ,wud.query_text
-#             ,total_elapsed_time_credit_use_ms / nullif(sum(total_elapsed_time_credit_use_ms) over (partition by wu.start_time, wu.warehouse_name), 0) as credits_used_percent
-#             ,coalesce(credits_used_percent, 1) * total_credits_used as credits_used
-#             ,row_number() over (order by (wud.start_time, wu.start_time), wu.warehouse_name) as id
-#         from wh_usage wu
-#         left join wh_detail wud on wu.warehouse_name = wud.warehouse_name
-#                                                 --and wu.start_time = wud.start_hour
-#                                                 --accommodate queries that run across an hour boundary (this causes nulls to show up when there are no other queries in the following hour)
-#                                                 and wu.start_time >= wud.start_hour
-#                                                 and wu.start_time <= date_trunc(hour, dateadd(millisecond, wud.total_elapsed_time_ms, wud.start_time))
-#         where wu.start_time >= '2016-11-01' ;;
-   sql:
-      select
-        wu.warehouse_name
-        ,coalesce(wud.start_time, wu.start_time) as start_time
-        ,wu.credits_used as total_credits_used
-        ,wud.query_id
-        ,wud.database_name
-        ,wud.schema_name
-        ,case
-            when wud.query_type = 'UNKNOWN'
-              then array_to_string(array_slice(split(query_text, ' '), 0, 2), ' ')
-            else wud.query_type
-            end as query_type
-        ,wud.user_name
-        ,wud.role_name
-        ,wud.warehouse_size
-        ,wud.total_elapsed_time as total_elapsed_time_ms
-        ,case when query_type not in ('DROP_CONSTRAINT', 'ALTER_TABLE_MODIFY_COLUMN', 'ALTER_TABLE_ADD_COLUMN', 'ALTER_TABLE_DROP_COLUMN', 'RENAME_COLUMN', 'DESCRIBE', 'SHOW', 'CREATE_TABLE', 'ALTER_SESSION', 'USE', 'DROP', 'CREATE CONSTRAINT', 'ALTER USER')
-              then total_elapsed_time_ms
+    create_process: {
+      sql_step:
+        CREATE TABLE IF NOT EXISTS ${SQL_TABLE_NAME} (
+              START_TIME TIMESTAMP_LTZ(9),
+              QUERY_START_TIME TIMESTAMP_LTZ(9),
+              WAREHOUSE_NAME STRING,
+              TOTAL_CREDITS_USED NUMBER(38,12),
+              QUERY_ID STRING,
+              QUERY_TYPE STRING,
+              QUERY_TEXT STRING,
+              QUERY_TAG STRING,
+              USER_NAME STRING,
+              ROLE_NAME STRING,
+              DATABASE_NAME STRING,
+              SCHEMA_NAME STRING,
+              WAREHOUSE_SIZE STRING,
+              EXECUTION_STATUS STRING,
+              ERROR_MESSAGE STRING,
+              ELAPSED_TIME_MS NUMBER(10,0),
+              ELAPSED_TIME_CREDIT_USE_MS NUMBER(10,0),
+              TOTAL_ELAPSED_TIME_CREDIT_USE_MS NUMBER(10,0),
+              CREDITS_USED_PERCENT NUMBER(11,10),
+              CREDITS_USED NUMBER(18,12),
+              ID NUMBER(18,0)
+            ) ;;
+      sql_step:
+        create sequence if not exists looker_scratch.warehouse_usage_id
+        ;;
+      sql_step:
+        create table if not exists looker_scratch.warehouse_usage
+        as
+        select *
+        from snowflake.account_usage.warehouse_metering_history
+        ;;
+      sql_step:
+        create or replace temporary table looker_scratch.wu_new
+        as
+        select *
+        from snowflake.account_usage.warehouse_metering_history
+        where start_time > (select max(start_time) from looker_scratch.warehouse_usage)
+        ;;
+      sql_step:
+        insert into looker_scratch.warehouse_usage
+        select * from looker_scratch.wu_new
+        ;;
+      sql_step:
+        create table if not exists looker_scratch.warehouse_usage_detail
+        as
+        select *
+        from snowflake.account_usage.query_history
+        where execution_status != 'running'
+        ;;
+      sql_step:
+        create or replace temporary table looker_scratch.wud_new
+        as
+        select *
+        from snowflake.account_usage.query_history
+        where execution_status != 'running'
+        and start_time > (select max(start_time) from looker_scratch.warehouse_usage_detail)
+        ;;
+      sql_step:
+        delete from looker_scratch.warehouse_usage_detail
+        where query_id in (select query_id from looker_scratch.wud_new)
+        ;;
+      sql_step:
+        insert into looker_scratch.warehouse_usage_detail
+        select * from looker_scratch.wud_new
+        ;;
+      sql_step:
+        delete from ${SQL_TABLE_NAME}
+        where start_time >= dateadd(day, -1, current_date());;
+      sql_step:
+        set latest = (select max(start_time) from ${SQL_TABLE_NAME});;
+      sql_step:
+        insert into ${SQL_TABLE_NAME}
+        select
+          --coalesce(wud.start_time, wu.start_time) as start_time
+          wu.start_time
+          ,wud.start_time as query_start_time
+          ,wu.warehouse_name, wu.credits_used as total_credits_used
+          ,wud.query_id, wud.query_type, wud.query_text, wud.query_tag, wud.user_name, wud.role_name, wud.database_name, wud.schema_name, wud.warehouse_size
+          ,wud.execution_status, wud.error_message
+          ,case
+              when wud.end_time > wu.end_time --query runs over time boundary, this is the portion of the query BEFORE the boundary
+              then date_part(epoch_millisecond, wu.end_time) - date_part(epoch_millisecond, wud.start_time) -- time boundary minus query start
+              when wud.start_time < wu.start_time --query runs over time boundary, this is the portion of the query AFTER the boundary
+              then date_part(epoch_millisecond, wud.end_time) - date_part(epoch_millisecond, wu.start_time) -- query end minus time boundary
+              else total_elapsed_time
+              end as elapsed_time_ms
+          ,case
+              when query_type not in ('DROP_CONSTRAINT', 'ALTER_TABLE_MODIFY_COLUMN', 'ALTER_TABLE_ADD_COLUMN', 'ALTER_TABLE_DROP_COLUMN', 'RENAME_COLUMN', 'DESCRIBE', 'SHOW', 'CREATE_TABLE', 'ALTER_SESSION', 'USE', 'DROP', 'CREATE CONSTRAINT', 'ALTER USER')
+              then elapsed_time_ms
               when query_id is not null
               then 0
-              end as total_elapsed_time_credit_use_ms
-        ,wud.query_text
-        ,total_elapsed_time_credit_use_ms / nullif(sum(total_elapsed_time_credit_use_ms) over (partition by wu.start_time, wu.warehouse_name), 0) as credits_used_percent
-        ,coalesce(credits_used_percent, 1) * total_credits_used as credits_used
-        ,row_number() over (order by (wud.start_time, wu.start_time), wu.warehouse_name) as id
-    from  USAGE.SNOWFLAKE.WAREHOUSE_USAGE wu
-    left join USAGE.SNOWFLAKE.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
-                                            --and wu.start_time = wud.start_hour
-                                            --accommodate queries that run across an hour boundary (this causes nulls to show up when there are no other queries in the following hour)
-                                            and wu.start_time >= wud.start_hour
-                                            and wu.start_time <= date_trunc(hour, dateadd(millisecond, wud.total_elapsed_time, wud.start_time))
-    where wu.start_time >= '2017-11-01'
-    ;;
-
+           end as elapsed_time_credit_use_ms
+          ,sum(elapsed_time_credit_use_ms) over (partition by wu.start_time, wu.warehouse_name) as total_elapsed_time_credit_use_ms
+          ,(elapsed_time_credit_use_ms / nullif(total_elapsed_time_credit_use_ms, 0))::decimal(20, 19) as credits_used_percent
+          ,wu.credits_used * credits_used_percent as credits_used
+          ,looker_scratch.warehouse_usage_id.nextval as id
+        from looker_scratch.WAREHOUSE_USAGE wu
+        left join looker_scratch.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
+                      and (
+                          wud.start_time between wu.start_time and wu.end_time
+                          or wud.end_time between wu.start_time and wu.end_time --query may be in more than one hour bucket
+                        )
+        where wu.start_time > $latest
+        or $latest is null
+      ;;
+    }
     sql_trigger_value: select count(*) from USAGE.SNOWFLAKE.WAREHOUSE_USAGE_DETAIL  ;;
   }
 
@@ -142,7 +158,7 @@ view: warehouse_usage {
 
   dimension: usage_date {
     type: date_raw
-    sql: ${TABLE}.start_time::date ;;
+    sql: ${start_raw}::date ;;
     hidden: yes
   }
 
@@ -165,7 +181,7 @@ view: warehouse_usage {
       quarter,
       year
     ]
-    sql: ${TABLE}.START_TIME ;;
+    sql: COALESCE(${TABLE}.QUERY_START_TIME, ${TABLE}.START_TIME) ;;
   }
 
   measure: latest_start_time {
