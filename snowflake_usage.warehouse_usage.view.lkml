@@ -1,6 +1,5 @@
 view: warehouse_usage {
   label: "Warehouse Usage"
-  #sql_table_name: ZPG.WAREHOUSE_USAGE_DETAIL ;;
   derived_table: {
     create_process: {
       sql_step:
@@ -25,7 +24,8 @@ view: warehouse_usage {
               TOTAL_ELAPSED_TIME_CREDIT_USE_MS NUMBER(10,0),
               CREDITS_USED_PERCENT NUMBER(11,10),
               CREDITS_USED NUMBER(18,12),
-              ID NUMBER(18,0)
+              ID NUMBER(18,0),
+              QUERY_TAG_USER_NAME STRING
             ) ;;
       sql_step:
         create sequence if not exists looker_scratch.warehouse_usage_id
@@ -74,6 +74,17 @@ view: warehouse_usage {
         delete from ${SQL_TABLE_NAME}
         where start_time >= dateadd(day, -1, current_date());;
       sql_step:
+        create temporary table looker_scratch.users as
+        select
+            user_name, user_login_name, user_full_name, user_email
+            ,case when user_email != '' then count(distinct user_name) over (partition by user_email) > 1 end as dup_emails
+            ,row_number() over (partition by user_email order by case when user_login_name = user_email then 0 else 1 end) as preference
+        from dev.zpg.T_USERS
+        where user_email != ''
+        and user_login_name like '%@%'
+        order by 4
+        ;;
+      sql_step:
         set latest = (select max(start_time) from ${SQL_TABLE_NAME});;
       sql_step:
         insert into ${SQL_TABLE_NAME}
@@ -82,7 +93,8 @@ view: warehouse_usage {
           wu.start_time
           ,wud.start_time as query_start_time
           ,wu.warehouse_name, wu.credits_used as total_credits_used
-          ,wud.query_id, wud.query_type, wud.query_text, wud.query_tag, wud.user_name, wud.role_name, wud.database_name, wud.schema_name, wud.warehouse_size
+          ,wud.query_id, wud.query_type, wud.query_text, wud.query_tag
+          ,wud.user_name, wud.role_name, wud.database_name, wud.schema_name, wud.warehouse_size
           ,wud.execution_status, wud.error_message
           ,case
               when wud.end_time > wu.end_time --query runs over time boundary, this is the portion of the query BEFORE the boundary
@@ -101,12 +113,14 @@ view: warehouse_usage {
           ,(elapsed_time_credit_use_ms / nullif(total_elapsed_time_credit_use_ms, 0))::decimal(20, 19) as credits_used_percent
           ,wu.credits_used * credits_used_percent as credits_used
           ,looker_scratch.warehouse_usage_id.nextval as id
+          ,u.user_name as query_tag_user_name
         from looker_scratch.WAREHOUSE_USAGE wu
         left join looker_scratch.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
                       and (
                           wud.start_time between wu.start_time and wu.end_time
                           or wud.end_time between wu.start_time and wu.end_time --query may be in more than one hour bucket
                         )
+        left join looker_scratch.users u on UPPER(wud.query_tag) in (UPPER(u.user_login_name), UPPER(u.user_email)) and u.preference = 1
         where wu.start_time > $latest
         or $latest is null
       ;;
@@ -195,6 +209,17 @@ view: warehouse_usage {
     type: number
     sql: datediff(second, ${latest_start_time}, current_timestamp()) / 3600 / 24 ;;
     value_format: "d \d\a\y\s h \h\r\s m \m\i\n\s"
+  }
+
+  dimension: query_tag {}
+  dimension: query_tag_user_name {
+    sql: UPPER(CASE
+            WHEN ${TABLE}.query_tag_user_name IS NOT NULL
+            THEN ${TABLE}.query_tag_user_name
+            WHEN ${query_tag} != ''
+            THEN ${query_tag}
+            ELSE ${user_name}
+            END);;
   }
 
   dimension: user_name {
