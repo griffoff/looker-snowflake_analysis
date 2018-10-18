@@ -312,7 +312,7 @@ view: warehouse_usage {
 
   dimension: elapsed_time {
     type: number
-    sql: ${TABLE}.TOTAL_ELAPSED_TIME_MS / 1000 / 3600 / 24 ;;
+    sql: ${TABLE}.ELAPSED_TIME_MS / 1000 / 3600 / 24 ;;
     hidden: yes
   }
 
@@ -333,6 +333,29 @@ view: warehouse_usage {
     sql: ${elapsed_time} ;;
     value_format_name: duration_hms
 
+  }
+
+  dimension: tablename {
+    hidden: yes
+    sql: replace(split_part(${query_text}, 'AS', 1), 'CREATE TABLE', '')  ;;
+  }
+
+  dimension: CTAS_tablename {
+    group_label: "Query details"
+    description: "The name of the table if it is a CREATE TABLE AS SELECT statement"
+    #CREATE TABLE LOOKER_SCRATCH.LC$JJ3T41537466855111_fair_use_tracking AS
+    sql:
+      case
+        when ${query_type} = 'CREATE_TABLE_AS_SELECT'
+        then
+          case
+            when ${query_text} ilike '%LOOKER_SCRATCH.LC$%'
+            then
+              'LOOKER_SCRATCH.' || array_to_string(array_slice(split(${tablename}, '_'), 2, 99), '_')
+            else ${tablename}
+            end
+        end
+    ;;
   }
 
   measure: total_elapsed_time {
