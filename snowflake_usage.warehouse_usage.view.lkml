@@ -3,7 +3,7 @@ view: warehouse_usage {
   derived_table: {
     create_process: {
       sql_step:
-        CREATE TABLE IF NOT EXISTS ${SQL_TABLE_NAME} (
+        CREATE TABLE IF NOT EXISTS looker_scratch.warehouse_usage_final (
               START_TIME TIMESTAMP_LTZ(9),
               QUERY_START_TIME TIMESTAMP_LTZ(9),
               WAREHOUSE_NAME STRING,
@@ -26,7 +26,8 @@ view: warehouse_usage {
               CREDITS_USED NUMBER(18,12),
               ID NUMBER(18,0),
               QUERY_TAG_USER_NAME STRING
-            ) ;;
+            )
+        ;;
       sql_step:
         create sequence if not exists looker_scratch.warehouse_usage_id
         ;;
@@ -71,10 +72,11 @@ view: warehouse_usage {
         select * from looker_scratch.wud_new
         ;;
       sql_step:
-        delete from ${SQL_TABLE_NAME}
-        where start_time >= dateadd(day, -1, current_date());;
+        delete from looker_scratch.warehouse_usage_final
+        where start_time >= dateadd(day, -1, current_date())
+        ;;
       sql_step:
-        create temporary table looker_scratch.users as
+        create or replace temporary table looker_scratch.users as
         select
             user_name, user_login_name, user_full_name, user_email
             ,case when user_email != '' then count(distinct user_name) over (partition by user_email) > 1 end as dup_emails
@@ -85,9 +87,10 @@ view: warehouse_usage {
         order by 4
         ;;
       sql_step:
-        set latest = (select max(start_time) from ${SQL_TABLE_NAME});;
+        set latest = (select max(start_time) from looker_scratch.warehouse_usage_final)
+        ;;
       sql_step:
-        insert into ${SQL_TABLE_NAME}
+        insert into looker_scratch.warehouse_usage_final
         select
           --coalesce(wud.start_time, wu.start_time) as start_time
           wu.start_time
@@ -114,18 +117,22 @@ view: warehouse_usage {
           ,wu.credits_used * credits_used_percent as credits_used
           ,looker_scratch.warehouse_usage_id.nextval as id
           ,u.user_name as query_tag_user_name
-        from looker_scratch.WAREHOUSE_USAGE wu
-        left join looker_scratch.WAREHOUSE_USAGE_DETAIL wud on wu.warehouse_name = wud.warehouse_name
+        from looker_scratch.warehouse_usage wu
+        left join looker_scratch.warehouse_usage_detail wud on wu.warehouse_name = wud.warehouse_name
                       and (
                           wud.start_time between wu.start_time and wu.end_time
-                          or wud.end_time between wu.start_time and wu.end_time --query may be in more than one hour bucket
+                          or
+                          wud.end_time between wu.start_time and wu.end_time --query may be in more than one hour bucket
                         )
         left join looker_scratch.users u on UPPER(wud.query_tag) in (UPPER(u.user_login_name), UPPER(u.user_email)) and u.preference = 1
-        where wu.start_time > $latest
-        or $latest is null
+        where (wu.start_time > $latest
+                or $latest is null)
+      ;;
+      sql_step:
+        create or replace table ${SQL_TABLE_NAME} clone looker_scratch.warehouse_usage_final
       ;;
     }
-    sql_trigger_value: select count(*) from USAGE.SNOWFLAKE.WAREHOUSE_USAGE_DETAIL  ;;
+    sql_trigger_value: select max(start_time) from snowflake.account_usage.warehouse_metering_history  ;;
   }
 
   set: query_details {
