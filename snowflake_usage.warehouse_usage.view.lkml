@@ -205,6 +205,18 @@ view: warehouse_usage {
     sql: COALESCE(${TABLE}.QUERY_START_TIME, ${TABLE}.START_TIME) ;;
   }
 
+  dimension: start_am_pm {
+    group_label: "Query Date"
+    label: "AM/PM"
+    case: {
+      when:{
+        label:"PM"
+        sql:${start_hour_of_day}>=12;;
+        }
+      else: "AM"
+      }
+  }
+
   measure: latest_start_time {
     label: "Up to date as of:"
     type: date_time
