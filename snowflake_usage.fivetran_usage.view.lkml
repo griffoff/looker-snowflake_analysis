@@ -8,7 +8,7 @@ view: fivetran_usage {
       column: warehouse_cost {}
       column: warehouse_name {}
       column: database_name {}
-      column: usage_date {}
+      column: usage_date {field:warehouse_usage.start_time}
       filters: {
         field: warehouse_usage.user_name
         value: "FIVETRAN%"
@@ -24,7 +24,7 @@ view: fivetran_usage {
   dimension_group: usage {
     label: "Usage Date"
     type: time
-    timeframes: [raw, date, month, year]
+    timeframes: [raw, date, month, year, hour_of_day]
     sql: ${TABLE}.usage_date ;;
   }
 }

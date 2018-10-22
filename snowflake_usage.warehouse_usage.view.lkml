@@ -217,6 +217,26 @@ view: warehouse_usage {
       }
   }
 
+  dimension: start_hour_of_day3 {
+    group_label: "Query Date"
+    label: "Hour6 of Day"
+    case: {
+      when:{
+        label:"midnight-6am"
+        sql:${start_hour_of_day} between 0 and 5;;
+      }
+      when:{
+        label:"6am-12pm"
+        sql:${start_hour_of_day} between 6 and 11;;
+      }
+      when:{
+        label:"12pm-6pm"
+        sql:${start_hour_of_day} between 12 and 17;;
+      }
+      else: "After 6pm"
+    }
+  }
+
   measure: latest_start_time {
     label: "Up to date as of:"
     type: date_time
@@ -255,7 +275,7 @@ view: warehouse_usage {
         # warehouse usage data captured before detail was being captured
       }
       when: {
-        sql: ${user_name} ilike 'FIVETRAN%' ;;
+        sql: ${user_name} ilike 'FIVETRAN%' or ${warehouse_name} ilike 'dbsync' ;;
         label: "Data Sync - FiveTran"
       }
       when: {
@@ -263,8 +283,12 @@ view: warehouse_usage {
         label: "Data Sync - RealTime"
       }
       when: {
+        sql:  ${query_tag_user_name} ilike 'PDT Rebuild' ;;
+        label: "Service - Looker - PDT Rebuild"
+      }
+      when: {
         sql:  ${user_name} ilike 'LOOKER%' ;;
-        label: "Service - Looker"
+        label: "Service - Looker - Reporting"
       }
       when: {
         sql:  ${user_name} ilike 'LO_APP' ;;
