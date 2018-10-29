@@ -8,6 +8,7 @@ view: database_storage {
             ,(average_database_bytes + average_failsafe_bytes) / power(1024, 4) as db_tb
             ,sum(db_tb) over (partition by usage_date) as total_tb
         FROM USAGE.SNOWFLAKE.DATABASE_STORAGE
+        --FROM SNOWFLAKE.ACCOUNT_USAGE.DATABASE_STORAGE_USAGE_HISTORY
         )
         select
             *
@@ -45,8 +46,8 @@ view: database_storage {
 
   measure: db_tb {
     label: "Avg. DB Size"
-    type: average
-    sql: ${TABLE}.db_tb * 1024 ;;
+    type: number
+    sql: SUM(${TABLE}.db_tb * power(1024, 2) ) / ${day_count} ;;
     value_format_name: MB
   }
 
@@ -54,6 +55,13 @@ view: database_storage {
     label: "# DBs"
     type: count_distinct
     sql: ${database_name} ;;
+  }
+
+  measure: day_count {
+    label: "# days"
+    type: count_distinct
+    sql: ${usage_date} ;;
+    hidden: yes
   }
 
   measure: credit_usage_value {
