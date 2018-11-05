@@ -199,10 +199,17 @@ view: warehouse_usage {
       day_of_month,
       week,
       month,
+      month_name,
       quarter,
       year
     ]
     sql: COALESCE(${TABLE}.QUERY_START_TIME, ${TABLE}.START_TIME) ;;
+  }
+
+  dimension: start_week_of_month {
+    group_label: "Query Date"
+    label: "Week of Month"
+    sql: 1 + FLOOR(${start_day_of_month} / 7) ;;
   }
 
   dimension: start_am_pm {
