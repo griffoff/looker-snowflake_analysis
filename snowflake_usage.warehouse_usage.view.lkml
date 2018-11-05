@@ -209,7 +209,7 @@ view: warehouse_usage {
   dimension: start_week_of_month {
     group_label: "Query Date"
     label: "Week of Month"
-    sql: 1 + FLOOR(${start_day_of_month} / 7) ;;
+    sql: 1 + FLOOR((${start_day_of_month}-1) / 7) ;;
   }
 
   dimension: start_am_pm {
