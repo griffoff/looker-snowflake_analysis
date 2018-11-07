@@ -33,7 +33,7 @@ view: snowflake_budget {
   }
 
   dimension: month {
-    type: date_month
+    type: date_raw
     sql: ${month_raw} ;;
     hidden: yes
   }
