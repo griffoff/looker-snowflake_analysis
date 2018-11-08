@@ -12,7 +12,7 @@ view: database_storage {
         )
         select
             *
-            ,extract(day FROM least(max(usage_date) over (), LAST_DAY(usage_date))) as days_in_month
+            ,extract(day FROM LAST_DAY(usage_date)) as days_in_month
             ,avg(total_tb) over (partition by date_trunc(month, usage_date)) / days_in_month as monthly_total_tb
             ,avg(db_tb) over (partition by database_name, date_trunc(month, usage_date)) / days_in_month as monthly_db_tb
         from daily
