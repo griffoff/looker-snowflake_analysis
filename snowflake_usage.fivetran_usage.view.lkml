@@ -25,7 +25,7 @@ view: fivetran_usage {
   dimension_group: usage {
     label: "Usage Date"
     type: time
-    timeframes: [raw, date, month, week, year, day_of_week]
+    timeframes: [raw, date, month, week, year, day_of_week, day_of_month]
     sql: ${TABLE}.usage_date ;;
   }
   measure: total_cost {
