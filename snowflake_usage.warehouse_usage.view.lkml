@@ -481,23 +481,32 @@ view: warehouse_usage {
     hidden: yes
   }
 
-  measure: credits_used {
-    type: sum
+  dimension: credits_used {
+    type: number
     value_format_name: decimal_2
     drill_fields: [query_details*]
     hidden: yes
   }
 
-  measure: warehouse_cost_per_credit {
+  dimension: warehouse_cost_per_credit {
     type: number
-    sql: 1.4 ;;
+    sql: CASE WHEN ${usage_date} >= '2018-11-18' THEN 1.25 ELSE 1.4 END ;;
     hidden: yes
+  }
+
+  dimension: warehouse_cost_raw {
+    label:"Warehouse Cost"
+    type: number
+    sql: case when ${credits_used} >= 0 then ${credits_used} end * ${warehouse_cost_per_credit};;
+    value_format_name: usd
+    hidden: yes
+    drill_fields: [query_details*]
   }
 
   measure: warehouse_cost {
     label:"Warehouse Cost"
-    type: number
-    sql: case when ${credits_used} >= 0 then ${credits_used} end * ${warehouse_cost_per_credit};;
+    type: sum
+    sql: ${warehouse_cost_raw} ;;
     value_format_name: usd
     drill_fields: [query_details*]
   }
@@ -505,7 +514,7 @@ view: warehouse_usage {
   measure: warehouse_cost_avg {
     label:"Warehouse Cost (Avg)"
     type: number
-    sql: ${warehouse_cost} / ${count};;
+    sql: ${warehouse_cost_raw} / ${count};;
     value_format_name: usd
     drill_fields: [query_details*]
   }
@@ -513,16 +522,25 @@ view: warehouse_usage {
   measure: warehouse_cost_monthly {
     label:"Warehouse Cost (1 month at this rate)"
     type: number
-    sql: ${warehouse_cost} * 365 / 12;;
+    sql: ${warehouse_cost_raw} * 365 / 12;;
     value_format_name: usd
     drill_fields: [query_details*]
     required_fields: [start_date]
   }
 
+  measure: warehouse_cost_ytd {
+    label:"Warehouse Cost (YTD)"
+    type: number
+    sql: SUM(${warehouse_cost_raw}) OVER (PARTITION BY YEAR(${usage_date} ORDER BY ${start_date} ROWS UNBOUNDED preceding) ;;
+    value_format_name: usd
+    required_fields: [start_date]
+  }
+
+
   measure: warehouse_cost_monthly_day_2 {
     label:"Warehouse Cost (1 month at the last 7 days avg daily rate)"
     type: number
-    sql: sum(${warehouse_cost}) over (order by ${start_date} rows between 7 preceding and current row) * 365 / 12 / 7 ;;
+    sql: sum(${warehouse_cost_raw}) over (order by ${start_date} rows between 7 preceding and current row) * 365 / 12 / 7 ;;
     value_format_name: usd
     required_fields: [start_date]
   }
@@ -530,7 +548,7 @@ view: warehouse_usage {
   measure: warehouse_cost_monthly_6 {
     label:"Warehouse Cost (1 month at the last 6 hours avg rate)"
     type: number
-    sql: sum(${warehouse_cost}) over (order by ${start_hour} rows between 6 preceding and current row) * 4 * 365 / 12;;
+    sql: sum(${warehouse_cost_raw}) over (order by ${start_hour} rows between 6 preceding and current row) * 4 * 365 / 12;;
     value_format_name: usd
     drill_fields: [query_details*]
     required_fields: [start_hour]
@@ -540,7 +558,7 @@ view: warehouse_usage {
     label: "Warehouse Cost (Month to Date)"
     required_fields: [start_date, start_month]
     type: number
-    sql: sum(${warehouse_cost}) over (partition by ${start_month} order by ${start_date} rows unbounded preceding) ;;
+    sql: sum(${warehouse_cost_raw}) over (partition by ${start_month} order by ${start_date} rows unbounded preceding) ;;
     value_format_name: usd
   }
 
