@@ -34,13 +34,15 @@ view: warehouse_usage {
       sql_step:
         create table if not exists looker_scratch.warehouse_usage
         as
-        select *
+        select
+          START_TIME, END_TIME, WAREHOUSE_ID, WAREHOUSE_NAME, CREDITS_USED
         from snowflake.account_usage.warehouse_metering_history
         ;;
       sql_step:
         create or replace temporary table looker_scratch.wu_new
         as
-        select *
+        select
+          START_TIME, END_TIME, WAREHOUSE_ID, WAREHOUSE_NAME, CREDITS_USED
         from snowflake.account_usage.warehouse_metering_history
         where start_time > (select max(start_time) from looker_scratch.warehouse_usage)
         ;;
@@ -51,14 +53,20 @@ view: warehouse_usage {
       sql_step:
         create table if not exists looker_scratch.warehouse_usage_detail
         as
-        select *
+        select
+          QUERY_ID, QUERY_TEXT, QUERY_TYPE, SESSION_ID, USER_NAME, ROLE_NAME, SCHEMA_ID, SCHEMA_NAME, DATABASE_ID, DATABASE_NAME, WAREHOUSE_ID, WAREHOUSE_NAME, WAREHOUSE_TYPE
+          ,WAREHOUSE_SIZE, QUERY_TAG, EXECUTION_STATUS, ERROR_CODE, ERROR_MESSAGE, START_TIME, END_TIME, TOTAL_ELAPSED_TIME, COMPILATION_TIME, EXECUTION_TIME, QUEUED_PROVISIONING_TIME
+          ,QUEUED_REPAIR_TIME, QUEUED_OVERLOAD_TIME, TRANSACTION_BLOCKED_TIME, OUTBOUND_DATA_TRANSFER_REGION, OUTBOUND_DATA_TRANSFER_BYTES
         from snowflake.account_usage.query_history
         where execution_status != 'running'
         ;;
       sql_step:
         create or replace temporary table looker_scratch.wud_new
         as
-        select *
+        select
+          QUERY_ID, QUERY_TEXT, QUERY_TYPE, SESSION_ID, USER_NAME, ROLE_NAME, SCHEMA_ID, SCHEMA_NAME, DATABASE_ID, DATABASE_NAME, WAREHOUSE_ID, WAREHOUSE_NAME, WAREHOUSE_TYPE
+          ,WAREHOUSE_SIZE, QUERY_TAG, EXECUTION_STATUS, ERROR_CODE, ERROR_MESSAGE, START_TIME, END_TIME, TOTAL_ELAPSED_TIME, COMPILATION_TIME, EXECUTION_TIME, QUEUED_PROVISIONING_TIME
+          ,QUEUED_REPAIR_TIME, QUEUED_OVERLOAD_TIME, TRANSACTION_BLOCKED_TIME, OUTBOUND_DATA_TRANSFER_REGION, OUTBOUND_DATA_TRANSFER_BYTES
         from snowflake.account_usage.query_history
         where execution_status != 'running'
         and start_time > (select max(start_time) from looker_scratch.warehouse_usage_detail)
