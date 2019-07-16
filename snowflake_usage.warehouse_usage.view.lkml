@@ -512,6 +512,7 @@ view: warehouse_usage {
   }
 
   measure: warehouse_cost {
+    group_label: "Warehouse Cost"
     label:"Warehouse Cost"
     type: sum
     sql: ${warehouse_cost_raw} ;;
@@ -519,7 +520,19 @@ view: warehouse_usage {
     drill_fields: [query_details*]
   }
 
+  measure: warehouse_cost_pit {
+    type: sum
+    group_label: "Warehouse Cost"
+    label: "Warehouse Cost (Point in Time)"
+    description: "The total cost of running warehouses (processing units) up the same point in the month as yesterday
+    i.e. running a query on 21st June for the past two months will show you June's current cost and May's cost up until May 20th"
+    sql: IFF(${warehouse_usage.start_day_of_month} <= DATE_PART(day, DATEADD(day, -1, CURRENT_DATE())), ${warehouse_cost_raw}, NULL) ;;
+    value_format_name: usd
+    drill_fields: [query_details*]
+  }
+
   measure: warehouse_cost_avg {
+    group_label: "Warehouse Cost"
     label:"Warehouse Cost (Avg)"
     type: number
     sql: ${warehouse_cost_raw} / ${count};;
@@ -528,6 +541,7 @@ view: warehouse_usage {
   }
 
   measure: warehouse_cost_monthly {
+    group_label: "Warehouse Cost"
     label:"Warehouse Cost (1 month at this rate)"
     type: number
     sql: ${warehouse_cost_raw} * 365 / 12;;
@@ -537,6 +551,7 @@ view: warehouse_usage {
   }
 
   measure: warehouse_cost_ytd {
+    group_label: "Warehouse Cost"
     label:"Warehouse Cost (YTD)"
     type: number
     sql: SUM(${warehouse_cost_raw}) OVER (PARTITION BY YEAR(${usage_date} ORDER BY ${start_date} ROWS UNBOUNDED preceding) ;;
@@ -546,6 +561,7 @@ view: warehouse_usage {
 
 
   measure: warehouse_cost_monthly_day_2 {
+    group_label: "Warehouse Cost"
     label:"Warehouse Cost (1 month at the last 7 days avg daily rate)"
     type: number
     sql: sum(${warehouse_cost_raw}) over (order by ${start_date} rows between 7 preceding and current row) * 365 / 12 / 7 ;;
@@ -554,6 +570,7 @@ view: warehouse_usage {
   }
 
   measure: warehouse_cost_monthly_6 {
+    group_label: "Warehouse Cost"
     label:"Warehouse Cost (1 month at the last 6 hours avg rate)"
     type: number
     sql: sum(${warehouse_cost_raw}) over (order by ${start_hour} rows between 6 preceding and current row) * 4 * 365 / 12;;
