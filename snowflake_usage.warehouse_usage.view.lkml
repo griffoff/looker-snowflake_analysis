@@ -267,9 +267,13 @@ view: warehouse_usage {
 
   dimension: query_tag {}
   dimension: query_tag_user_name {
+    label: "Real user name"
+    description: "Either from a session tag if available (looker users) or direct user in snowflake"
     sql: UPPER(CASE
             WHEN ${TABLE}.query_tag_user_name IS NOT NULL
             THEN ${TABLE}.query_tag_user_name
+            WHEN ${query_tag} = 'PDT'
+            THEN 'PDT Rebuild'
             WHEN ${query_tag} != ''
             THEN ${query_tag}
             ELSE ${user_name}
@@ -279,6 +283,7 @@ view: warehouse_usage {
   dimension: user_name {
     type: string
     sql: ${TABLE}.USER_NAME ;;
+    drill_fields: [query_tag_user_name, warehouse_cost, warehouse_cost_monthly, count]
   }
 
   dimension: user_type {
@@ -414,7 +419,7 @@ view: warehouse_usage {
     group_label: "Query Duration"
     type: sum
     sql: ${elapsed_time} ;;
-    value_format_name: duration_dhm
+    value_format: "[m] \m\i\n\s s \s\e\c\s"
     drill_fields: [query_details*]
   }
 
