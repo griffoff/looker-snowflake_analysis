@@ -540,7 +540,7 @@ view: warehouse_usage {
     group_label: "Warehouse Cost"
     label:"Warehouse Cost (Avg)"
     type: number
-    sql: ${warehouse_cost_raw} / ${count};;
+    sql: ${warehouse_cost} / ${count};;
     value_format_name: usd
     drill_fields: [query_details*]
   }
