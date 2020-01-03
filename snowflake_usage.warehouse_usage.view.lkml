@@ -86,10 +86,10 @@ view: warehouse_usage {
       sql_step:
         create or replace temporary table looker_scratch.users as
         select
-            user_name, user_login_name, user_full_name, user_email
+            name as user_name, login_name as user_login_name, display_name as user_full_name, email as user_email
             ,case when user_email != '' then count(distinct user_name) over (partition by user_email) > 1 end as dup_emails
             ,row_number() over (partition by user_email order by case when user_login_name = user_email then 0 else 1 end) as preference
-        from dev.zpg.T_USERS
+        from snowflake.account_usage.users
         where user_email != ''
         and user_login_name like '%@%'
         order by 4
