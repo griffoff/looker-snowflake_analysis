@@ -185,6 +185,33 @@ view: warehouse_usage {
     sql: ${TABLE}.SCHEMA_NAME ;;
   }
 
+  dimension: query_text_clean {
+    sql: UPPER(replace(regexp_replace(${query_text}, '\\s+', ' '), '""', '')) ;;
+  }
+
+  dimension: table_name_calc_base {
+    sql:
+        TRIM(UPPER(CASE query_type
+        WHEN'MERGE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN 'CREATE_TABLE_AS_SELECT' THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
+        WHEN 'INSERT' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN 'UPDATE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
+        ELSE '?'
+        END))
+ ;;
+  }
+
+  dimension: table_name_calc {
+    sql: COALESCE(SPLIT_PART(${table_name_calc_base}, '.', -1), ${tablename})::STRING;;
+  }
+
+  dimension: schema_name_calc {
+    sql: COALESCE(
+            NULLIF(SPLIT_PART(${table_name_calc_base}, '.', -2), '')
+             ,${schema_name}
+             )::STRING ;;
+  }
+
   dimension: usage_date {
     type: date_raw
     sql: ${start_raw}::date ;;
@@ -259,10 +286,9 @@ view: warehouse_usage {
   }
 
   measure: data_recency {
-    label: "Age of data"
-    type: number
-    sql: datediff(second, ${latest_start_time}, current_timestamp()) / 3600 / 24 ;;
-    value_format: "d \d\a\y\s h \h\r\s m \m\i\n\s"
+    label: "Last queried"
+    type: date
+    sql: ${latest_start_time};;
   }
 
   dimension: query_tag {}
