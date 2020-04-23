@@ -7,8 +7,8 @@ view: database_storage {
             *
             ,(average_database_bytes + average_failsafe_bytes) / power(1024, 4) as db_tb
             ,sum(db_tb) over (partition by usage_date) as total_tb
-        FROM USAGE.SNOWFLAKE.DATABASE_STORAGE
-        --FROM SNOWFLAKE.ACCOUNT_USAGE.DATABASE_STORAGE_USAGE_HISTORY
+        --FROM USAGE.SNOWFLAKE.DATABASE_STORAGE
+        FROM SNOWFLAKE.ACCOUNT_USAGE.DATABASE_STORAGE_USAGE_HISTORY
         )
         select
             *

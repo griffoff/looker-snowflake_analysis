@@ -189,13 +189,15 @@ view: warehouse_usage {
     sql: UPPER(replace(regexp_replace(${query_text}, '\\s+', ' '), '""', '')) ;;
   }
 
-  dimension: table_name_calc_base {
+   dimension: table_name_calc_base {
     sql:
         TRIM(UPPER(CASE query_type
         WHEN'MERGE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN 'SELECT' THEN split_part(ARRAY_COMPACT(split(${query_text_clean}, 'FROM '))[1], ' ', 1)
         WHEN 'CREATE_TABLE_AS_SELECT' THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
         WHEN 'INSERT' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
         WHEN 'UPDATE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
+        WHEN 'DELETE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
         ELSE '?'
         END))
  ;;
@@ -212,10 +214,22 @@ view: warehouse_usage {
              )::STRING ;;
   }
 
+  dimension: database_name_calc {
+    sql: COALESCE(
+            NULLIF(SPLIT_PART(${table_name_calc_base}, '.', -3), '')
+             ,${database_name}
+             )::STRING ;;
+  }
+
   dimension: usage_date {
     type: date_raw
     sql: ${start_raw}::date ;;
     hidden: yes
+  }
+
+  measure: example_query_text {
+    type: string
+    sql: ANY_VALUE(${query_text_clean}) ;;
   }
 
   dimension_group: start {
