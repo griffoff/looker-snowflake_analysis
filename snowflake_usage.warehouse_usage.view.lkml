@@ -3,7 +3,9 @@ view: warehouse_usage {
   derived_table: {
     create_process: {
       sql_step:
-        CREATE TABLE IF NOT EXISTS looker_scratch.warehouse_usage_final (
+        CREATE TRANSIENT TABLE IF NOT EXISTS looker_scratch.warehouse_usage_final
+        CLUSTER BY (query_start_time::DATE)
+        (
               START_TIME TIMESTAMP_LTZ(9),
               QUERY_START_TIME TIMESTAMP_LTZ(9),
               WAREHOUSE_NAME STRING,
@@ -32,11 +34,15 @@ view: warehouse_usage {
         create sequence if not exists looker_scratch.warehouse_usage_id
         ;;
       sql_step:
-        create table if not exists looker_scratch.warehouse_usage
+        create transient table if not exists looker_scratch.warehouse_usage
         as
         select
           START_TIME, END_TIME, WAREHOUSE_ID, WAREHOUSE_NAME, CREDITS_USED
         from snowflake.account_usage.warehouse_metering_history
+        order by start_time
+        ;;
+      sql_step:
+        alter table looker_scratch.warehouse_usage cluster by (start_time::DATE)
         ;;
       sql_step:
         create or replace temporary table looker_scratch.wu_new
@@ -51,7 +57,10 @@ view: warehouse_usage {
         select * from looker_scratch.wu_new
         ;;
       sql_step:
-        create table if not exists looker_scratch.warehouse_usage_detail
+        alter table looker_scratch.warehouse_usage recluster
+        ;;
+      sql_step:
+        create transient table if not exists looker_scratch.warehouse_usage_detail
         as
         select
           QUERY_ID, QUERY_TEXT, QUERY_TYPE, SESSION_ID, USER_NAME, ROLE_NAME, SCHEMA_ID, SCHEMA_NAME, DATABASE_ID, DATABASE_NAME, WAREHOUSE_ID, WAREHOUSE_NAME, WAREHOUSE_TYPE
@@ -59,6 +68,10 @@ view: warehouse_usage {
           ,QUEUED_REPAIR_TIME, QUEUED_OVERLOAD_TIME, TRANSACTION_BLOCKED_TIME, OUTBOUND_DATA_TRANSFER_REGION, OUTBOUND_DATA_TRANSFER_BYTES
         from snowflake.account_usage.query_history
         where execution_status != 'running'
+        order by start_time
+        ;;
+      sql_step:
+        alter table looker_scratch.warehouse_usage_detail cluster by (start_time::DATE)
         ;;
       sql_step:
         create or replace temporary table looker_scratch.wud_new
@@ -78,6 +91,9 @@ view: warehouse_usage {
       sql_step:
         insert into looker_scratch.warehouse_usage_detail
         select * from looker_scratch.wud_new
+        ;;
+      sql_step:
+        alter table looker_scratch.warehouse_usage_detail recluster
         ;;
       sql_step:
         delete from looker_scratch.warehouse_usage_final
@@ -102,7 +118,7 @@ view: warehouse_usage {
         select
           --coalesce(wud.start_time, wu.start_time) as start_time
           wu.start_time
-          ,wud.start_time as query_start_time
+          ,COALESCE(wud.start_time, wu.start_time) as query_start_time
           ,wu.warehouse_name, wu.credits_used as total_credits_used
           ,wud.query_id, wud.query_type, wud.query_text, wud.query_tag
           ,wud.user_name, wud.role_name, wud.database_name, wud.schema_name, wud.warehouse_size
@@ -138,6 +154,9 @@ view: warehouse_usage {
         where (wu.start_time > $latest
                 or $latest is null)
       ;;
+      sql_step:
+        alter table looker_scratch.warehouse_usage_final recluster ;;
+
       sql_step:
         create or replace table ${SQL_TABLE_NAME} clone looker_scratch.warehouse_usage_final
       ;;
@@ -298,7 +317,7 @@ view: warehouse_usage {
       quarter,
       year
     ]
-    sql: COALESCE(${TABLE}.QUERY_START_TIME, ${TABLE}.START_TIME) ;;
+    sql: ${TABLE}.QUERY_START_TIME ;;
   }
 
   dimension: start_week_of_month {
