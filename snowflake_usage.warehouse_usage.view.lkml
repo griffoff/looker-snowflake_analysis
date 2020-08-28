@@ -158,7 +158,7 @@ view: warehouse_usage {
         alter table looker_scratch.warehouse_usage_final recluster ;;
 
       sql_step:
-        create or replace table ${SQL_TABLE_NAME} clone looker_scratch.warehouse_usage_final
+        create or replace transient table ${SQL_TABLE_NAME} clone looker_scratch.warehouse_usage_final
       ;;
     }
     sql_trigger_value: select max(start_time) from snowflake.account_usage.warehouse_metering_history  ;;
