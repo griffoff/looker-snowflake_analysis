@@ -161,6 +161,7 @@ view: warehouse_usage {
     group_label: "Query details"
     type: string
     sql: ${TABLE}.QUERY_ID ;;
+    html: <a title="{{query_text._value}}" target="_blank" href="https://cengage.snowflakecomputing.com/console#/monitoring/queries/detail?queryId={{value}}">{{rendered_value}}</a> ;;
   }
 
   dimension: query_text {
@@ -186,14 +187,24 @@ view: warehouse_usage {
   }
 
   dimension: query_text_clean {
+    group_label: "Query details"
     sql: UPPER(replace(regexp_replace(${query_text}, '\\s+', ' '), '""', '')) ;;
   }
 
    dimension: table_name_calc_base {
+    group_label: "Query details"
     sql:
         TRIM(UPPER(CASE query_type
         WHEN'MERGE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
-        WHEN 'SELECT' THEN split_part(ARRAY_COMPACT(split(${query_text_clean}, 'FROM '))[1], ' ', 1)
+        WHEN 'SELECT' THEN
+          split_part(ARRAY_COMPACT(split(
+            CASE WHEN LEFT(TRIM(split_part(${query_text_clean}, 'FROM ', 2)), 1) = '('
+            THEN
+              REGEXP_SUBSTR(${query_text_clean}, '.*FROM\\s+\\((.+)\\).*', 1, 1, 'me') --to extract subqueries e.g. SELECT * FROM (SELECT * FROM table)
+            ELSE
+              ${query_text_clean}
+            END
+            , 'FROM '))[1], ' ', 1)
         WHEN 'CREATE_TABLE_AS_SELECT' THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
         WHEN 'INSERT' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
         WHEN 'UPDATE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
@@ -204,10 +215,12 @@ view: warehouse_usage {
   }
 
   dimension: table_name_calc {
+    group_label: "Query details"
     sql: COALESCE(SPLIT_PART(${table_name_calc_base}, '.', -1), ${tablename})::STRING;;
   }
 
   dimension: schema_name_calc {
+    group_label: "Query details"
     sql: COALESCE(
             NULLIF(SPLIT_PART(${table_name_calc_base}, '.', -2), '')
              ,${schema_name}
@@ -215,6 +228,7 @@ view: warehouse_usage {
   }
 
   dimension: database_name_calc {
+    group_label: "Query details"
     sql: COALESCE(
             NULLIF(SPLIT_PART(${table_name_calc_base}, '.', -3), '')
              ,${database_name}
@@ -228,8 +242,9 @@ view: warehouse_usage {
   }
 
   measure: example_query_text {
+    description: "An example query in the current context of rows or pivot dimensions.  Limited to 500 characters"
     type: string
-    sql: ANY_VALUE(${query_text_clean}) ;;
+    sql: LEFT(ANY_VALUE(${query_text_clean}), 500) ;;
   }
 
   dimension_group: start {
