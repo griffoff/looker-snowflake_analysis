@@ -115,7 +115,9 @@ view: warehouse_usage {
               else total_elapsed_time
               end as elapsed_time_ms
           ,case
-              when query_type not in ('DROP_CONSTRAINT', 'ALTER_TABLE_MODIFY_COLUMN', 'ALTER_TABLE_ADD_COLUMN', 'ALTER_TABLE_DROP_COLUMN', 'RENAME_COLUMN', 'DESCRIBE', 'SHOW', 'CREATE_TABLE', 'ALTER_SESSION', 'USE', 'DROP', 'CREATE CONSTRAINT', 'ALTER USER')
+              when split_part(query_type, '_', 1) not in (
+              'ALTER', 'CREATE', 'DESCRIBE', 'SHOW', 'RENAME', 'DROP', 'USE', 'SET', 'REVOKE', 'GRANT', 'UNSET'
+              )
               then elapsed_time_ms
               when query_id is not null
               then 0
@@ -146,7 +148,8 @@ view: warehouse_usage {
   set: query_details {
     fields: [start_time, query_text, query_type, warehouse_name, database_name, schema_name, role_name, user_name, total_elapsed_time_detail, warehouse_cost]
   }
-  dimension: database_name {
+  dimension: database_name_raw {
+    hidden: yes
     type: string
     sql: ${TABLE}.DATABASE_NAME ;;
   }
@@ -176,12 +179,25 @@ view: warehouse_usage {
     sql: ${TABLE}.QUERY_TYPE ;;
   }
 
+  dimension: query_type_category {
+    group_label: "Query Details"
+    type: string
+    case: {
+      when: {sql: split_part(${query_type}, '_', 1) in (
+              'ALTER', 'CREATE', 'DESCRIBE', 'SHOW', 'RENAME', 'DROP', 'USE', 'SET', 'REVOKE', 'GRANT', 'UNSET'
+              );;
+              label: "DDL"}
+            else: "DML"
+    }
+  }
+
   dimension: role_name {
     type: string
     sql: ${TABLE}.ROLE_NAME ;;
   }
 
-  dimension: schema_name {
+  dimension: schema_name_raw {
+    hidden: yes
     type: string
     sql: ${TABLE}.SCHEMA_NAME ;;
   }
@@ -192,11 +208,12 @@ view: warehouse_usage {
   }
 
    dimension: table_name_calc_base {
+    hidden: yes
     group_label: "Query details"
     sql:
-        TRIM(UPPER(CASE query_type
-        WHEN'MERGE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
-        WHEN 'SELECT' THEN
+        TRIM(UPPER(CASE
+        WHEN query_type = 'MERGE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN query_type IN ('SELECT', 'UNLOAD') THEN
           split_part(ARRAY_COMPACT(split(
             CASE WHEN LEFT(TRIM(split_part(${query_text_clean}, 'FROM ', 2)), 1) = '('
             THEN
@@ -205,34 +222,47 @@ view: warehouse_usage {
               ${query_text_clean}
             END
             , 'FROM '))[1], ' ', 1)
-        WHEN 'CREATE_TABLE_AS_SELECT' THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
-        WHEN 'INSERT' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
-        WHEN 'UPDATE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
-        WHEN 'DELETE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN query_type = 'CREATE_TABLE_AS_SELECT' THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
+        WHEN query_type IN ('INSERT', 'DELETE', 'RECLUSTER', 'COPY', 'UNLOAD', 'DESCRIBE_QUERY')
+          THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN query_type = 'UPDATE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
         ELSE '?'
         END))
  ;;
   }
 
-  dimension: table_name_calc {
+  dimension: table_name {
     group_label: "Query details"
     sql: COALESCE(SPLIT_PART(${table_name_calc_base}, '.', -1), ${tablename})::STRING;;
+    alias: [table_name_calc]
   }
 
-  dimension: schema_name_calc {
+  dimension: full_table_name {
+    group_label: "Query details"
+    sql: ${table_name_calc_base}::STRING ;;
+  }
+
+  dimension: schema_name {
     group_label: "Query details"
     sql: COALESCE(
             NULLIF(SPLIT_PART(${table_name_calc_base}, '.', -2), '')
-             ,${schema_name}
+             ,${schema_name_raw}
              )::STRING ;;
+    alias: [schema_name_calc]
   }
 
-  dimension: database_name_calc {
+  dimension: full_schema_name {
+    group_label: "Query details"
+    sql: ${database_name} || '.' || ${schema_name} ;;
+  }
+
+  dimension: database_name {
     group_label: "Query details"
     sql: COALESCE(
             NULLIF(SPLIT_PART(${table_name_calc_base}, '.', -3), '')
-             ,${database_name}
+             ,${database_name_raw}
              )::STRING ;;
+    alias: [database_name_calc]
   }
 
   dimension: usage_date {
@@ -244,7 +274,8 @@ view: warehouse_usage {
   measure: example_query_text {
     description: "An example query in the current context of rows or pivot dimensions.  Limited to 500 characters"
     type: string
-    sql: LEFT(ANY_VALUE(${query_text_clean}), 500) ;;
+    sql: ANY_VALUE(${query_text_clean}) ;;
+    html: <div title="{{value}}">{{value | slice:0,500}}</div>  ;;
   }
 
   dimension_group: start {
