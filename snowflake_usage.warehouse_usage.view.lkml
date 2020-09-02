@@ -199,7 +199,7 @@ view: warehouse_usage {
   }
 
   dimension: query_type_category {
-    group_label: "Query Details"
+    group_label: "Query details"
     type: string
     case: {
       when: {sql: split_part(${query_type}, '_', 1) in (
