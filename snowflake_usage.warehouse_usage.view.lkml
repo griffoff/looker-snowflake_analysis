@@ -164,9 +164,14 @@ view: warehouse_usage {
     sql_trigger_value: select max(start_time) from snowflake.account_usage.warehouse_metering_history  ;;
   }
 
-  set: query_details {
-    fields: [start_time, query_text, query_type, warehouse_name, database_name, schema_name, role_name, user_name, total_elapsed_time_detail, warehouse_cost]
-  }
+  drill_fields: [
+    start_time, query_text, query_type
+    , warehouse_name, database_name, schema_name, table_name
+    , role_name, user_name, query_tag
+    , total_elapsed_time_detail, warehouse_cost
+    , query_id
+    ]
+
   dimension: database_name_raw {
     hidden: yes
     type: string
@@ -273,6 +278,10 @@ view: warehouse_usage {
   dimension: full_schema_name {
     group_label: "Query details"
     sql: ${database_name} || '.' || ${schema_name} ;;
+    link: {
+      label: "See more detailed usage for this schema"
+      url: "https://cengage.looker.com/dashboards-next/889?Full+Schema+Name={{value | url_encode}}"
+    }
   }
 
   dimension: database_name {
@@ -370,8 +379,11 @@ view: warehouse_usage {
     sql: ${latest_start_time};;
   }
 
-  dimension: query_tag {}
+  dimension: query_tag {
+    group_label: "Query details"
+  }
   dimension: query_tag_user_name {
+    group_label: "User name"
     label: "Real user name"
     description: "Either from a session tag if available (looker users) or direct user in snowflake"
     sql: UPPER(CASE
@@ -383,12 +395,17 @@ view: warehouse_usage {
             THEN ${query_tag}
             ELSE ${user_name}
             END);;
+    link: {
+      label: "See more detailed usage for this user"
+      url: "https://cengage.looker.com/dashboards-next/889?Real+user+name={{value | url_encode}}"}
   }
 
   dimension: user_name {
+    group_label: "User name"
+    label: "Database user name"
     type: string
     sql: ${TABLE}.USER_NAME ;;
-    drill_fields: [query_tag_user_name, warehouse_cost, warehouse_cost_monthly, count]
+    drill_fields: [query_tag, start_week, warehouse_cost, count]
   }
 
   dimension: user_type {
@@ -468,7 +485,6 @@ view: warehouse_usage {
   measure: count {
     label: "# Queries"
     type: count
-    drill_fields: [query_details*]
   }
 
   dimension: elapsed_time {
@@ -525,7 +541,6 @@ view: warehouse_usage {
     type: sum
     sql: ${elapsed_time} ;;
     value_format: "[m] \m\i\n\s s \s\e\c\s"
-    drill_fields: [query_details*]
   }
 
   measure: cost_per_query {
@@ -546,7 +561,6 @@ view: warehouse_usage {
     type: average
     sql: ${elapsed_time} ;;
     value_format_name: duration_hms
-    drill_fields: [query_details*]
   }
 
   measure: max_elapsed_time {
@@ -555,7 +569,7 @@ view: warehouse_usage {
     type: max
     sql: ${elapsed_time} ;;
     value_format_name: duration_hms
-    drill_fields: [query_details*]
+
   }
 
   measure: min_elapsed_time {
@@ -564,7 +578,7 @@ view: warehouse_usage {
     type: min
     sql: ${elapsed_time} ;;
     value_format_name: duration_hms
-    drill_fields: [query_details*]
+
   }
 
   measure: med_elapsed_time {
@@ -573,7 +587,7 @@ view: warehouse_usage {
     type: median
     sql: ${elapsed_time} ;;
     value_format_name: duration_hms
-    drill_fields: [query_details*]
+
   }
 
   measure: stdev_elapsed_time {
@@ -582,7 +596,7 @@ view: warehouse_usage {
     type: number
     sql: stddev(${elapsed_time}) ;;
     value_format_name: duration_hms
-    drill_fields: [query_details*]
+
   }
 
   measure: total_elapsed_time_credit_use {
@@ -590,7 +604,7 @@ view: warehouse_usage {
     type: sum
     sql: ${TABLE}.total_elapsed_time_credit_use_ms / 3600 / 24 ;;
     value_format_name: duration_hms
-    drill_fields: [query_details*]
+
   }
 
   measure: credits_used_percent {
@@ -602,7 +616,7 @@ view: warehouse_usage {
   dimension: credits_used {
     type: number
     value_format_name: decimal_2
-    drill_fields: [query_details*]
+
     hidden: yes
   }
 
@@ -618,7 +632,7 @@ view: warehouse_usage {
     sql: case when ${credits_used} >= 0 then ${credits_used} end * ${warehouse_cost_per_credit};;
     value_format_name: usd
     hidden: yes
-    drill_fields: [query_details*]
+
   }
 
   measure: warehouse_cost {
@@ -627,7 +641,7 @@ view: warehouse_usage {
     type: sum
     sql: ${warehouse_cost_raw} ;;
     value_format_name: usd
-    drill_fields: [query_details*]
+
   }
 
   measure: warehouse_cost_pit {
@@ -638,7 +652,7 @@ view: warehouse_usage {
     i.e. running a query on 21st June for the past two months will show you June's current cost and May's cost up until May 20th"
     sql: IFF(${warehouse_usage.start_day_of_month} <= DATE_PART(day, DATEADD(day, -1, CURRENT_DATE())), ${warehouse_cost_raw}, NULL) ;;
     value_format_name: usd
-    drill_fields: [query_details*]
+
   }
 
   measure: warehouse_cost_avg {
@@ -647,7 +661,7 @@ view: warehouse_usage {
     type: number
     sql: ${warehouse_cost} / ${count};;
     value_format_name: usd
-    drill_fields: [query_details*]
+
   }
 
   measure: warehouse_cost_monthly {
@@ -656,7 +670,7 @@ view: warehouse_usage {
     type: number
     sql: ${warehouse_cost_raw} * 365 / 12;;
     value_format_name: usd
-    drill_fields: [query_details*]
+
     required_fields: [start_date]
   }
 
@@ -685,7 +699,7 @@ view: warehouse_usage {
     type: number
     sql: sum(${warehouse_cost_raw}) over (order by ${start_hour} rows between 6 preceding and current row) * 4 * 365 / 12;;
     value_format_name: usd
-    drill_fields: [query_details*]
+
     required_fields: [start_hour]
   }
 
