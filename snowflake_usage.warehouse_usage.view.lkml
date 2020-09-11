@@ -68,6 +68,8 @@ view: warehouse_usage {
           ,QUEUED_REPAIR_TIME, QUEUED_OVERLOAD_TIME, TRANSACTION_BLOCKED_TIME, OUTBOUND_DATA_TRANSFER_REGION, OUTBOUND_DATA_TRANSFER_BYTES
         from snowflake.account_usage.query_history
         where execution_status != 'running'
+        and NOT is_client_generated_statement
+
         order by start_time
         ;;
       sql_step:
@@ -82,6 +84,7 @@ view: warehouse_usage {
           ,QUEUED_REPAIR_TIME, QUEUED_OVERLOAD_TIME, TRANSACTION_BLOCKED_TIME, OUTBOUND_DATA_TRANSFER_REGION, OUTBOUND_DATA_TRANSFER_BYTES
         from snowflake.account_usage.query_history
         where execution_status != 'running'
+        and NOT is_client_generated_statement
         and start_time > (select max(start_time) from looker_scratch.warehouse_usage_detail)
         ;;
       sql_step:
@@ -207,11 +210,24 @@ view: warehouse_usage {
     group_label: "Query details"
     type: string
     case: {
-      when: {sql: split_part(${query_type}, '_', 1) in (
+      when: {
+        label: "SELECT"
+        sql:  ${query_type}= 'SELECT';;
+        }
+      when: {
+        label: "DML"
+        sql: ${query_type}= 'CREATE_TABLE_AS_SELECT'
+            OR split_part(${query_type}, '_', 1) in (
+              'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'ROLLBACK', 'COMMIT', 'BEGIN', 'RECLUSTER'
+              );;
+      }
+      when: {
+        label: "DDL"
+        sql: split_part(${query_type}, '_', 1) in (
               'ALTER', 'CREATE', 'DESCRIBE', 'SHOW', 'RENAME', 'DROP', 'USE', 'SET', 'REVOKE', 'GRANT', 'UNSET'
               );;
-              label: "DDL"}
-            else: "DML"
+      }
+        else: "UNKNOWN"
     }
   }
 
@@ -451,6 +467,10 @@ view: warehouse_usage {
       when: {
         sql:  ${user_name} ilike 'UNLIMITED_SPARK%' ;;
         label: "Service - CAP/UNLIMITED"
+      }
+      when: {
+        sql:  ${user_name} ilike 'APP_%' ;;
+        label: "Service - App/Other"
       }
       else: "User"
     }
