@@ -323,64 +323,21 @@ view: warehouse_usage {
   }
 
   dimension_group: start {
-    label: "Query"
+    label: "Query Start"
     type: time
-    timeframes: [
-      raw,
-      time,
-      hour_of_day,
-      time_of_day,
-      hour,
-      hour3,
-      hour6,
-      date,
-      day_of_week,
-      day_of_month,
-      week,
-      month,
-      month_name,
-      quarter,
-      year
-    ]
     sql: ${TABLE}.QUERY_START_TIME ;;
   }
 
+  dimension_group: end {
+    label: "Query End"
+    type: time
+    sql: DATEADD(millisecond, ${elapsed_time_ms}, ${TABLE}.QUERY_START_TIME) ;;
+  }
+
   dimension: start_week_of_month {
-    group_label: "Query Date"
+    group_label: "Query Start Date"
     label: "Week of Month"
     sql: 1 + FLOOR((${start_day_of_month}-1) / 7) ;;
-  }
-
-  dimension: start_am_pm {
-    group_label: "Query Date"
-    label: "AM/PM"
-    case: {
-      when:{
-        label:"PM"
-        sql:${start_hour_of_day}>=12;;
-        }
-      else: "AM"
-      }
-  }
-
-  dimension: start_hour_of_day3 {
-    group_label: "Query Date"
-    label: "Hour6 of Day"
-    case: {
-      when:{
-        label:"midnight-6am"
-        sql:${start_hour_of_day} between 0 and 5;;
-      }
-      when:{
-        label:"6am-12pm"
-        sql:${start_hour_of_day} between 6 and 11;;
-      }
-      when:{
-        label:"12pm-6pm"
-        sql:${start_hour_of_day} between 12 and 17;;
-      }
-      else: "After 6pm"
-    }
   }
 
   measure: latest_start_time {
@@ -507,9 +464,20 @@ view: warehouse_usage {
     type: count
   }
 
+  dimension: elapsed_time_ms {
+    type: number
+    hidden: no
+  }
+
+  dimension: elapsed_time_s {
+    type: number
+    sql: ${elapsed_time_ms} / 1000 ;;
+    hidden: no
+  }
+
   dimension: elapsed_time {
     type: number
-    sql: ${TABLE}.ELAPSED_TIME_MS / 1000 / 3600 / 24 ;;
+    sql: ${elapsed_time_s} / 3600 / 24 ;;
     hidden: yes
   }
 
