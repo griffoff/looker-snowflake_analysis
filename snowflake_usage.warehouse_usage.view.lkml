@@ -252,20 +252,25 @@ view: warehouse_usage {
     group_label: "Query details"
     sql:
         TRIM(UPPER(CASE
-        WHEN query_type = 'MERGE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
-        WHEN query_type IN ('SELECT', 'UNLOAD') THEN
-          split_part(ARRAY_COMPACT(split(
-            CASE WHEN LEFT(TRIM(split_part(${query_text_clean}, 'FROM ', 2)), 1) = '('
-            THEN
-              REGEXP_SUBSTR(${query_text_clean}, '.*FROM\\s+\\((.+)\\).*', 1, 1, 'me') --to extract subqueries e.g. SELECT * FROM (SELECT * FROM table)
-            ELSE
-              ${query_text_clean}
-            END
-            , 'FROM '))[1], ' ', 1)
-        WHEN query_type = 'CREATE_TABLE_AS_SELECT' THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
+        WHEN query_type = 'MERGE'
+          THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
+        WHEN query_type IN ('SELECT', 'UNLOAD')
+          THEN
+            split_part(ARRAY_COMPACT(split(
+              CASE WHEN LEFT(TRIM(split_part(${query_text_clean}, 'FROM ', 2)), 1) = '('
+              THEN
+                REGEXP_SUBSTR(${query_text_clean}, '.*FROM\\s+\\((.+)\\).*', 1, 1, 'me') --to extract subqueries e.g. SELECT * FROM (SELECT * FROM table)
+              ELSE
+                ${query_text_clean}
+              END
+              , 'FROM '))[1], ' ', 1)
+        WHEN query_type IN ('CREATE_TABLE')
+          THEN REGEXP_SUBSTR(${query_text_clean}, '.+\\bTABLE[\bIF NOT EXISTS]*\\b([[:word:][:punct:]]+)\\b', 1, 1, 'ie')
+        WHEN query_type = 'CREATE_TABLE_AS_SELECT'
+          THEN split_part(split_part(ARRAY_COMPACT(split(${query_text_clean}, 'TABLE '))[1], ' AS ', 1), 'COPY GRANTS', 1)
         WHEN query_type IN ('INSERT', 'DELETE', 'RECLUSTER', 'COPY', 'UNLOAD', 'DESCRIBE_QUERY')
           THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[2]
-        WHEN query_type = 'UPDATE' THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
+        WHEN query_type IN ('UPDATE', 'DROP', 'ALTER_TABLE') THEN ARRAY_COMPACT(split(${query_text_clean}, ' '))[1]
         ELSE '?'
         END))
  ;;
