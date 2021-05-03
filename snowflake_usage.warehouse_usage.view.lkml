@@ -175,6 +175,8 @@ view: warehouse_usage {
     , query_id
     ]
 
+  set: drill_fields_user {fields:[query_tag_user_name, count, average_days_used_per_user]}
+
   dimension: database_name_raw {
     hidden: yes
     type: string
@@ -395,6 +397,11 @@ view: warehouse_usage {
         # warehouse usage data captured before detail was being captured
       }
       when: {
+        sql: ${user_name} in ('SYSTEM');;
+        label: "Database - System"
+        # warehouse usage data captured before detail was being captured
+      }
+      when: {
         sql: ${user_name} ilike 'FIVETRAN%' or ${warehouse_name} ilike 'dbsync' ;;
         label: "Data Sync - FiveTran"
       }
@@ -431,8 +438,28 @@ view: warehouse_usage {
         label: "Service - CAP/UNLIMITED"
       }
       when: {
+        sql: ${user_name} in ('CAP:CUI:COMMON') ;;
+        label: "Service - CAP/CUI"
+      }
+      when: {
         sql:  ${user_name} ilike 'APP_%' ;;
         label: "Service - App/Other"
+      }
+      when: {
+        sql:  ${user_name} IN ('QA_AUTOMATION_CU') ;;
+        label: "Service - QA Automation"
+      }
+      when: {
+        sql: ${user_name} IN ('ROYALTY REPORTS COMPARISON TOOL') ;;
+        label: "Tool - Royalty Reports Comparison"
+      }
+      when: {
+        sql: ${user_name} IN ('HR_READER') ;;
+        label: "Tool - HR"
+      }
+      when: {
+        sql: ${user_name} IN ('K12ANALYTICS') ;;
+        label: "Service - K12 Analytics"
       }
       else: "User"
     }
@@ -468,6 +495,7 @@ view: warehouse_usage {
     type: count_distinct
     label:"# Users"
     sql: ${query_tag_user_name} ;;
+    drill_fields: [drill_fields_user*]
   }
 
   measure: average_days_used_per_user {
