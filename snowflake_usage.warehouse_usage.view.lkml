@@ -464,6 +464,18 @@ view: warehouse_usage {
     value_format_name: usd
   }
 
+  measure: user_count {
+    type: count_distinct
+    label:"# Users"
+    sql: ${query_tag_user_name} ;;
+  }
+
+  measure: average_days_used_per_user {
+    type: number
+    sql: COUNT(DISTINCT ${query_tag_user_name}, ${start_date}) / ${user_count} ;;
+    value_format_name: decimal_1
+  }
+
   measure: count {
     label: "# Queries"
     type: count
