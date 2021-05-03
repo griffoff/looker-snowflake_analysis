@@ -1,3 +1,5 @@
+include: "//core/datagroups.lkml"
+
 view: t_privilege_type {
   label: "Permissions"
   derived_table: {
@@ -33,7 +35,7 @@ view: t_privilege_type {
     ,('UPDATE','DML')
     ,('USAGE','READ');;
 
-    persist_for: "24 hours"
+    datagroup_trigger: daily_refresh
   }
 
   dimension: privilege {
